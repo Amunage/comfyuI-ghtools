@@ -1,0 +1,111 @@
+class TagEmotionNode:
+    TAG_EMOTION = {
+        "부끄러움": "embarrassed, blush,",
+        "지루함": "bored,",
+        "혼란함": "confused ,",
+        "얀데레": "yandere,",
+        "슬픈 절망": "despair, tears, crying,",
+        "결심함": "determined,",
+        "실망함": "disappointed,",
+        "경멸함": "disdain, shaded face,",
+        "역겨움": "disgust,",
+        "지침": "exhausted, sweatdrop, open mouth, steaming body,",
+        "무표정": "expressionless,",
+        "얼굴을 가림": "facepalm,",
+        "부끄러운 당황": "flustered,",
+        "미간 찌푸리기": "furrowed brow,",
+        "빡침": "grimace,",
+        "해피": "happy,",
+        "안절부절": "nervous,",
+        "머쓱함": "nervous smile,",
+        "강간됨": "rape face,",
+        "눈이 살짝 위로": "rolling eyes,",
+        "두려움": "sacred,",
+        "진지함": "serious,",
+        "한숨": "sigh,",
+        "졸림": "sleepy,",
+        "놀람": "surprised,",
+        "V자 눈썹": "v-shaped eyebrows,",
+        "당혹감": "wince,",
+        "짖궂은 표정": "naughty face,",
+        "매혹적임": "seductive smile,",
+        "쾌락에 빠짐": "fucked silly,",
+        "슬픔": "sad,",
+        "부정적 감정": "frown, full-face blush, tears,",
+        "우울한 표정": "(gloom \(expression\), chibi, shaded face,",
+        "악동 웃음": "evil smile,",
+        "손가락 스마일": "fingersmile,",
+        "건치 웃음": "grin,",
+        "능글맞은 표정": "smug,",
+        "화남": "Angry,",
+        "빠직!": "Anger Vein,",
+        "거슬림": "annoyed,",
+        "꽉 깨문 이": "clenched teeth,",
+        "불쾌함": "scowl,",
+        "뾰루퉁": "pout,",
+        "잘난 표정": "smirk,",
+        "도발적인 표정": "troll face,",
+        "비명": "screaming,",
+        "엄청 슬픔": "sobbing,",
+        "안색 나빠짐": "turn_pale,",
+        ":D": ":D,",
+        "혀 낼름": ":p,",
+        "군침 도는 표정": ":q,",
+        "뭔가를 먹고 있음": ":t,",
+        "입꼬리 내려감": ":C,",
+        "삼각형 입": "diamond mouth,",
+        "오...하는 표정": ":o,",
+        "입술을 내밈": "o3o,",
+        "o_o": "o_o,",
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        dropdown = ["none"] + list(cls.TAG_EMOTION.keys())
+        return {
+            "required": {
+                "emotion1": (
+                    dropdown,
+                    {"default": "none"},
+                ),
+                "emotion2": (
+                    dropdown,
+                    {"default": "none"},
+                ),
+                "emotion3": (
+                    dropdown,
+                    {"default": "none"},
+                ),
+                "text": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("keywords",)
+
+    FUNCTION = "build_keywords"
+    CATEGORY = "GHTools/Tags"
+
+    def build_keywords(self, emotion1, emotion2, emotion3, text):
+        parts = []
+
+        for option in (emotion1, emotion2, emotion3):
+            if option != "none":
+                value = self.TAG_EMOTION.get(option)
+                if value:
+                    parts.append(value)
+
+        manual = (text or "").strip()
+        if manual:
+            parts.append(manual)
+
+        combined = " ".join(p.strip() for p in parts) if parts else ""
+
+        return (combined,)
+
