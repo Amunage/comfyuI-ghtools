@@ -1,26 +1,14 @@
-class TagHumansNode:
-    KEYWORDS_A = {
-        "1girl": "1girl,",
-        "2girls": "2girls,",
-        "3girls": "3girls,",
-        "4girls": "4girls,",
-        "5girls": "5girls,",
-        "6+girls": "6+girls,",
-    }
+from .tag_loader import TagNodeBase
 
-    KEYWORDS_B = {
-        "1man": "1man,",
-        "2mans": "2mans,",
-        "3mans": "3mans,",
-        "4mans": "4mans,",
-        "5mans": "5mans,",
-        "6+mans": "6+mans,",
-    }
+
+class TagHumansNode(TagNodeBase):
+    _category = "humans"
 
     @classmethod
     def INPUT_TYPES(cls):
-        dropdown_a = ["none"] + list(cls.KEYWORDS_A.keys())
-        dropdown_b = ["none"] + list(cls.KEYWORDS_B.keys())
+        keywords = cls._load_keywords()
+        dropdown_a = ["none"] + list(keywords["KEYWORDS_A"].keys())
+        dropdown_b = ["none"] + list(keywords["KEYWORDS_B"].keys())
         return {
             "required": {
                 "girl": (

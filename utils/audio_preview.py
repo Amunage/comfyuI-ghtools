@@ -108,6 +108,8 @@ def wait_for_audio_preview(node_id, audio, mode, period=0.1):
         
         # 사용자 선택 대기
         while node_id in node_data:
+            mm.throw_exception_if_processing_interrupted()
+
             node_info = node_data[node_id]
             
             if node_info.get("cancelled", False):
@@ -148,6 +150,9 @@ def wait_for_audio_preview(node_id, audio, mode, period=0.1):
     except AudioPreviewCancelled:
         raise mm.InterruptProcessingException()
     except mm.InterruptProcessingException:
+        node_data = get_audio_preview_cache()
+        if str(node_id) in node_data:
+            cleanup_session_data(str(node_id))
         raise
     except Exception as e:
         print(f"[AudioPreview] Error: {e}")

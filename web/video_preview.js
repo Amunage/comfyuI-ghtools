@@ -51,6 +51,28 @@ function chainCallback(object, property, callback) {
     }
 }
 
+async function uploadGifToInput(file) {
+    const formData = new FormData();
+    formData.append("image", file, file.name);
+    formData.append("type", "input");
+    formData.append("overwrite", "true");
+
+    const resp = await api.fetchApi("/upload/image", {
+        method: "POST",
+        body: formData,
+    });
+
+    if (!resp.ok) {
+        throw new Error("GIF upload failed");
+    }
+
+    const data = await resp.json();
+    const subfolder = data?.subfolder || "";
+    const name = data?.name || file.name;
+    const path = subfolder ? `${subfolder}/${name}` : name;
+    return { path, name, subfolder };
+}
+
 // Format widgets 추가 함수 (VHS.core.js의 addFormatWidgets 참조)
 function addFormatWidgets(nodeType, nodeData) {
     // nodeData에서 format 정의 가져오기
@@ -330,12 +352,12 @@ function addVideoPreview(nodeType) {
             const formatType = format.split('/')[0];
             const formatExt = format.split('/')[1];
             
-            if (formatType == 'video' || formatExt == 'gif') {
+            if (formatType == 'video') {
                 this.videoEl.autoplay = !this.value.paused && !this.value.hidden;
                 this.videoEl.src = api.apiURL('/view?' + new URLSearchParams(params));
                 this.videoEl.hidden = false;
                 this.imgEl.hidden = true;
-            } else if (formatType == 'image') {
+            } else if (formatType == 'image' || formatExt == 'gif') {
                 this.imgEl.src = api.apiURL('/view?' + new URLSearchParams(params));
                 this.videoEl.hidden = true;
                 this.imgEl.hidden = false;
@@ -346,16 +368,69 @@ function addVideoPreview(nodeType) {
     });
 }
 
+function addStableWidgetSerializationByName(nodeType) {
+    chainCallback(nodeType.prototype, "onNodeCreated", function() {
+        if (this._ghtoolsStableSerializeApplied) {
+            return;
+        }
+        this._ghtoolsStableSerializeApplied = true;
+
+        const node = this;
+        const getSerializableWidgets = () =>
+            (node.widgets || []).filter((w) => !(w.options && w.options.serialize === false));
+
+        const origOnSerialize = node.onSerialize;
+        node.onSerialize = function(o) {
+            if (origOnSerialize) {
+                origOnSerialize.call(this, o);
+            }
+            const byName = {};
+            for (const w of getSerializableWidgets()) {
+                if (w.name) {
+                    byName[w.name] = w.value;
+                }
+            }
+            o.ghtools_widget_values_by_name = byName;
+        };
+
+        const origOnConfigure = node.onConfigure;
+        node.onConfigure = function(o) {
+            if (origOnConfigure) {
+                origOnConfigure.call(this, o);
+            }
+            const byName = o?.ghtools_widget_values_by_name;
+            if (!byName || typeof byName !== "object") {
+                return;
+            }
+            for (const w of getSerializableWidgets()) {
+                if (!w.name || !(w.name in byName)) {
+                    continue;
+                }
+                w.value = byName[w.name];
+                if (w.callback) {
+                    w.callback(w.value, this, w);
+                }
+            }
+            this.setDirtyCanvas(true, true);
+        };
+    });
+}
+
 app.registerExtension({
     name: 'ghtools.videoPreview',
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === 'GHVideoPreview') {
+        const isVideoPreviewNode = nodeData.name === 'GHVideoPreview';
+        const isGifToolNode = nodeData.name === 'GHGifDecomposer' || nodeData.name === 'GHGifAssembler';
+
+        if (isVideoPreviewNode || isGifToolNode) {
+            // GIF/비디오 미리보기 위젯 추가
+            addVideoPreview(nodeType);
+        }
+
+        if (isVideoPreviewNode) {
             // Format widgets 동적 추가
             addFormatWidgets(nodeType, nodeData);
-            
-            // 비디오 미리보기 위젯 추가
-            addVideoPreview(nodeType);
             
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function() {
@@ -367,61 +442,145 @@ app.registerExtension({
                 
                 const self = this;
                 
-                // Save 버튼
-                this.saveButton = this.addWidget("button", "💾 Save", null, function() {
-                    if (self.isWaiting) {
-                        sendVideoPreviewAction(self.id, "save");
-                        self.isWaiting = false;
-                        self.updateButtons();
-                    }
-                });
-                disableSerialize(this.saveButton);
-                
-                // Pass 버튼
-                this.passButton = this.addWidget("button", "▶ Pass", null, function() {
-                    if (self.isWaiting) {
-                        sendVideoPreviewAction(self.id, "pass");
-                        self.isWaiting = false;
-                        self.updateButtons();
-                    }
-                });
-                disableSerialize(this.passButton);
-                
-                // Retry 버튼
-                this.retryButton = this.addWidget("button", "↻ Retry", null, function() {
-                    if (self.isWaiting) {
-                        sendVideoPreviewAction(self.id, "retry");
-                        self.isWaiting = false;
-                        self.updateButtons();
-                    }
-                });
-                disableSerialize(this.retryButton);
-                
-                // Cancel 버튼
-                this.cancelButton = this.addWidget("button", "✖ Cancel", null, function() {
-                    if (self.isWaiting) {
-                        sendVideoPreviewAction(self.id, "cancel");
-                        self.isWaiting = false;
-                        self.updateButtons();
-                    }
-                });
-                disableSerialize(this.cancelButton);
-                
+                // 가로 배치 액션 버튼 위젯
+                const actionWidget = {
+                    name: "action_buttons",
+                    type: "custom",
+                    options: { serialize: false },
+                    hitAreas: {},
+                    mouseDowned: null,
+                    isMouseDownedAndOver: false,
+                    downedHitAreasForClick: [],
+                    y: 0,
+                    last_y: 0,
+                    
+                    computeSize(width) {
+                        return [width, 30];
+                    },
+                    
+                    clickWasWithinBounds(pos, bounds) {
+                        const xStart = bounds[0];
+                        const xEnd = xStart + (bounds.length > 2 ? bounds[2] : bounds[1]);
+                        const clickedX = pos[0] >= xStart && pos[0] <= xEnd;
+                        if (bounds.length === 2) return clickedX;
+                        return clickedX && pos[1] >= bounds[1] && pos[1] <= bounds[1] + bounds[3];
+                    },
+                    
+                    mouse(event, pos, node) {
+                        if (event.type === "pointerdown") {
+                            this.mouseDowned = [...pos];
+                            this.isMouseDownedAndOver = true;
+                            this.downedHitAreasForClick = [];
+                            for (const part of Object.values(this.hitAreas)) {
+                                if (this.clickWasWithinBounds(pos, part.bounds)) {
+                                    if (part.onClick) this.downedHitAreasForClick.push(part);
+                                    part.wasMouseClickedAndIsOver = true;
+                                }
+                            }
+                            return true;
+                        }
+                        if (event.type === "pointerup") {
+                            if (!this.mouseDowned) return true;
+                            this.mouseDowned = null;
+                            this.isMouseDownedAndOver = false;
+                            for (const part of Object.values(this.hitAreas)) {
+                                part.wasMouseClickedAndIsOver = false;
+                            }
+                            for (const part of this.downedHitAreasForClick) {
+                                if (this.clickWasWithinBounds(pos, part.bounds)) {
+                                    part.onClick(event, pos, node, part);
+                                }
+                            }
+                            this.downedHitAreasForClick = [];
+                            return true;
+                        }
+                        if (event.type === "pointermove") {
+                            this.isMouseDownedAndOver = !!this.mouseDowned;
+                        }
+                    },
+                    
+                    draw(ctx, node, width, y) {
+                        this.hitAreas = {};
+                        
+                        const labels = [
+                            { key: "save", text: "Save" },
+                            { key: "pass", text: "Pass" },
+                            { key: "retry", text: "Retry" },
+                            { key: "cancel", text: "Cancel" },
+                        ];
+                        
+                        const horizontalMargin = 8;
+                        const spacing = 4;
+                        const buttonHeight = 20;
+                        const totalSpacing = spacing * (labels.length - 1);
+                        const buttonWidth = (node.size[0] - horizontalMargin * 2 - totalSpacing) / labels.length;
+                        let buttonX = horizontalMargin;
+                        
+                        for (const item of labels) {
+                            const isPressed = this.downedHitAreasForClick.some(
+                                (part) => part.key === `action_${item.key}` && part.wasMouseClickedAndIsOver
+                            );
+                            const isWaiting = !!node.isWaiting;
+                            const alpha = isWaiting ? 1 : 0.45;
+                            
+                            ctx.fillStyle = isPressed
+                                ? `rgba(95, 145, 95, ${alpha})`
+                                : `rgba(35, 35, 35, ${alpha})`;
+                            ctx.strokeStyle = `rgba(100, 100, 100, ${alpha})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.roundRect(buttonX, y, buttonWidth, buttonHeight, 5);
+                            ctx.fill();
+                            ctx.stroke();
+                            
+                            ctx.fillStyle = `rgba(230, 230, 230, ${alpha})`;
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            ctx.font = "12px Arial";
+                            ctx.fillText(item.text, buttonX + buttonWidth / 2, y + buttonHeight / 2);
+                            
+                            this.hitAreas[`action_${item.key}`] = {
+                                key: `action_${item.key}`,
+                                bounds: [buttonX, y, buttonWidth, buttonHeight],
+                                data: item.key,
+                                onClick: async (event, pos, node, bounds) => {
+                                    if (!node.isWaiting) return;
+                                    const action = bounds?.data;
+                                    if (!action) return;
+                                    const result = await sendVideoPreviewAction(node.id, action);
+                                    if (result?.code === 1) {
+                                        node.isWaiting = false;
+                                        node.bgcolor = null;
+                                        node.setDirtyCanvas(true, true);
+                                    }
+                                },
+                            };
+                            
+                            buttonX += buttonWidth + spacing;
+                        }
+                    },
+                };
+                this.addCustomWidget(actionWidget);
+
+                // 액션 버튼을 비디오 미리보기 위젯 위로 이동
+                const widgets = this.widgets || [];
+                const actionIdx = widgets.indexOf(actionWidget);
+                const previewWidget = widgets.find((w) =>
+                    w?.name === "videopreview" ||
+                    w?.type === "preview" ||
+                    w?.parentEl?.className === "ghtools_video_preview"
+                );
+                const previewIdx = previewWidget ? widgets.indexOf(previewWidget) : -1;
+                if (actionIdx >= 0 && previewIdx >= 0 && actionIdx > previewIdx) {
+                    widgets.splice(actionIdx, 1);
+                    widgets.splice(previewIdx, 0, actionWidget);
+                }
+
                 // 버튼 상태 업데이트 함수
                 this.updateButtons = function() {
                     if (this.isWaiting) {
-                        this.saveButton.name = "💾 Save Video";
-                        this.passButton.name = "▶ Pass Images";
-                        this.retryButton.name = "↻ Retry";
-                        this.cancelButton.name = "✖ Cancel";
-                        // 노드 색상 변경 (대기 상태 표시)
                         this.bgcolor = "#553355";
                     } else {
-                        this.saveButton.name = "Save";
-                        this.passButton.name = "Pass";
-                        this.retryButton.name = "Retry";
-                        this.cancelButton.name = "Cancel";
-                        // 노드 색상 복원
                         this.bgcolor = null;
                     }
                     this.setDirtyCanvas(true, true);
@@ -446,6 +605,84 @@ app.registerExtension({
                     this.previewInfo = preview;
                     
                     // updateParameters 호출하여 미리보기 업데이트
+                    if (this.updateParameters) {
+                        this.updateParameters(preview);
+                    }
+                }
+            };
+        }
+
+        if (isGifToolNode) {
+            addStableWidgetSerializationByName(nodeType);
+
+            if (nodeData.name === 'GHGifDecomposer') {
+                const onNodeCreated = nodeType.prototype.onNodeCreated;
+                nodeType.prototype.onNodeCreated = function() {
+                    const result = onNodeCreated?.apply(this, arguments);
+                    const self = this;
+
+                    const gifPathWidget = this.widgets?.find((w) => w.name === "gif_path");
+                    this.uploadGifButton = this.addWidget("button", "업로드할 파일 선택", null, async function() {
+                        try {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = ".gif,image/gif";
+                            input.onchange = async () => {
+                                if (!input.files || !input.files.length) return;
+                                const uploaded = await uploadGifToInput(input.files[0]);
+                                if (gifPathWidget) {
+                                    gifPathWidget.value = uploaded.path;
+                                    if (gifPathWidget.callback) {
+                                        gifPathWidget.callback(uploaded.path, self, gifPathWidget);
+                                    }
+                                    self.setDirtyCanvas(true, true);
+                                }
+
+                                // Show uploaded GIF immediately without waiting for graph execution.
+                                if (self.updateParameters) {
+                                    self.updateParameters({
+                                        filename: uploaded.name,
+                                        subfolder: uploaded.subfolder,
+                                        type: "input",
+                                        format: "image/gif",
+                                    }, true);
+                                }
+                            };
+                            input.click();
+                        } catch (error) {
+                            console.error("GIF upload failed:", error);
+                        }
+                    });
+                    disableSerialize(this.uploadGifButton);
+
+                    // Keep preview as the bottom-most widget by moving upload button above it.
+                    const widgets = this.widgets || [];
+                    const uploadIdx = widgets.indexOf(this.uploadGifButton);
+                    const previewWidget = widgets.find((w) =>
+                        w?.name === "preview" ||
+                        w?.type === "videopreview" ||
+                        w?.parentEl?.className === "ghtools_video_preview"
+                    );
+                    const previewIdx = previewWidget ? widgets.indexOf(previewWidget) : -1;
+                    if (uploadIdx >= 0 && previewIdx >= 0) {
+                        widgets.splice(uploadIdx, 1);
+                        const targetIdx = Math.max(0, previewIdx - (uploadIdx < previewIdx ? 1 : 0));
+                        widgets.splice(targetIdx, 0, this.uploadGifButton);
+                        fitHeight(this);
+                    }
+
+                    return result;
+                };
+            }
+
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function(output) {
+                if (onExecuted) {
+                    onExecuted.apply(this, arguments);
+                }
+
+                if (output && output.gifs && output.gifs.length > 0) {
+                    const preview = output.gifs[0];
                     if (this.updateParameters) {
                         this.updateParameters(preview);
                     }
@@ -522,6 +759,15 @@ app.registerExtension({
         });
         
         api.addEventListener("execution_error", () => {
+            app.graph._nodes.forEach((node) => {
+                if (node.type === 'GHVideoPreview') {
+                    node.isWaiting = false;
+                    if (node.updateButtons) node.updateButtons();
+                }
+            });
+        });
+
+        api.addEventListener("execution_interrupted", () => {
             app.graph._nodes.forEach((node) => {
                 if (node.type === 'GHVideoPreview') {
                     node.isWaiting = false;

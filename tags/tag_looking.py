@@ -1,27 +1,12 @@
-class TagLookingNode:
-    KEYWORDS = {
-        "이쪽": "looking at viewer,",
-        "정면": "looking ahead,",
-        "위쪽": "looking up,",
-        "아래": "looking down,",
-        "옆쪽": "looking to the side,",
-        "뒷쪽": "looking back,",
-        "먼곳": "looking afar,",
-        "바깥": "looking at outside,",
-        "사물": "looking at object,",
-        "동물": "looking at animal,",
-        "거울": "looking at mirror,",
-        "음식": "looking at food,",
-        "가슴": "looking at breasts,",
-        "성기": "looking at penis,",
-        "손": "looking at hand,",
-        "꽃": "looking at flowers,",
-        "핸드폰": "looking at phone,",
-    }
+from .tag_loader import TagNodeBase
+
+
+class TagLookingNode(TagNodeBase):
+    _category = "looking"
 
     @classmethod
     def INPUT_TYPES(cls):
-        options = ["none"] + list(cls.KEYWORDS.keys())
+        options = ["none"] + list(cls._load_keywords()["KEYWORDS"].keys())
         return {
             "required": {
                 "look": (

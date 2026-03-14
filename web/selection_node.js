@@ -100,7 +100,7 @@ function setupAnySelectionEvents() {
         setTimeout(() => { app.queuePrompt(0, 1); }, 100);
     });
 
-    for (const evt of ["execution_start", "execution_cached", "execution_error"]) {
+    for (const evt of ["execution_start", "execution_cached", "execution_error", "execution_interrupted"]) {
         resetNodesOnEvent(evt, TYPE);
     }
 }
@@ -158,7 +158,7 @@ function setupForkSelectionEvents() {
         setTimeout(() => { app.queuePrompt(0, 1); }, 100);
     });
 
-    for (const evt of ["execution_start", "execution_cached", "execution_error"]) {
+    for (const evt of ["execution_start", "execution_cached", "execution_error", "execution_interrupted"]) {
         resetNodesOnEvent(evt, TYPE);
     }
 }

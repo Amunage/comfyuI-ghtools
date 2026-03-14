@@ -1,15 +1,13 @@
-class TagGradeNode:
-    KEYWORDS = {
-        "일반등급": "general,",
-        "청소년등급": "sensitive,",
-        "성인등급": "nsfw,",
-        "노인등급": "explicit,",
-    }
+from .tag_loader import TagNodeBase
+
+
+class TagGradeNode(TagNodeBase):
+    _category = "grade"
 
     @classmethod
     def INPUT_TYPES(cls):
         # 드롭다운 항목은 dict의 key들
-        dropdown = list(cls.KEYWORDS.keys())
+        dropdown = list(cls._load_keywords()["KEYWORDS"].keys())
         return {
             "required": {
                 "grade": (

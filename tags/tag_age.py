@@ -1,25 +1,14 @@
-class TagAgeNode:
-    TAG_AGE = {
-        "아기": "baby,",
-        "유아기": "toddler,",
-        "아동기": "child,",
-        "청소년기": "adolescent,",
-        "성인": "young adult,",
-        "노인": "old,",
-    }
+from .tag_loader import TagNodeBase
 
-    TAG_AGESCALE = {
-        "어려짐": "aged down,",
-        "나이듬": "aged up,",
-        "성숙함": "mature female,",
-        "로리": "loli,",
-        "어린아이": "belly,",
-    }
+
+class TagAgeNode(TagNodeBase):
+    _category = "age"
 
     @classmethod
     def INPUT_TYPES(cls):
-        dropdown_age = ["none"] + list(cls.TAG_AGE.keys())
-        dropdown_scale = ["none"] + list(cls.TAG_AGESCALE.keys())
+        keywords = cls._load_keywords()
+        dropdown_age = ["none"] + list(keywords["TAG_AGE"].keys())
+        dropdown_scale = ["none"] + list(keywords["TAG_AGESCALE"].keys())
         return {
             "required": {
                 "age": (

@@ -10,6 +10,13 @@ from .selection_input import AnySelection
 from .audio_preview import AudioPreview
 from .audio_controller import AudioController
 from .video_preview import VideoPreview
+from .generate_llm import GenerateLLM
+from .gif_decomposer import GifDecomposer
+from .gif_assembler import GifAssembler
+from .image_mask import ImageMask
+from .image_crop import ImageCrop
+from .Prompt_buffer import PromptBuffer
+from .image_autoloader import ImageAutoloader
 
 
 NODE_CLASS_MAPPINGS = {
@@ -25,21 +32,35 @@ NODE_CLASS_MAPPINGS = {
 	"GHAudioPreview": AudioPreview,
 	"GHAudioController": AudioController,
 	"GHVideoPreview": VideoPreview,
+	"GHGenerateLLM": GenerateLLM,
+	"GHGifDecomposer": GifDecomposer,
+	"GHGifAssembler": GifAssembler,
+	"GHImageMask": ImageMask,
+	"GHImageCrop": ImageCrop,
+	"GHPromptBuffer": PromptBuffer,
+	"GHImageAutoloader": ImageAutoloader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-	"GHStepsCfgValue": "GH Steps CFG Value",
-	"GHConvertValue": "GH Convert Value",
-	"GHtextConcatenate": "GH Text Concatenate",
-	"GHtextConcatenateToggle": "GH Text Concatenate (Toggle)",
-	"GHTextSwitch": "GH Text Switch",
-	"GHImageComparer": "GH Image Comparer",
-	"GHImageResolutionNode": "GH Image Resolution",
-	"GHForkSelection": "GH Selection Output",
-	"GHAnySelection": "GH Selection Input",
-	"GHAudioPreview": "GH Audio Preview",
-	"GHAudioController": "GH Audio Controller",
-	"GHVideoPreview": "GH Video Preview",
+	"GHStepsCfgValue": "🐴 Steps CFG Value",
+	"GHConvertValue": "🐴 Convert Value",
+	"GHtextConcatenate": "🐴 Text Concatenate",
+	"GHtextConcatenateToggle": "🐴 Text Concatenate (Toggle)",
+	"GHTextSwitch": "🐴 Text Switch",
+	"GHImageComparer": "🐴 Image Comparer",
+	"GHImageResolutionNode": "🐴 Image Resolution",
+	"GHForkSelection": "🐴 Selection Output",
+	"GHAnySelection": "🐴 Selection Input",
+	"GHAudioPreview": "🐴 Audio Preview",
+	"GHAudioController": "🐴 Audio Controller",
+	"GHVideoPreview": "🐴 Video Preview",
+	"GHGenerateLLM": "🐴 Generate LLM",
+	"GHGifDecomposer": "🐴 GIF Decomposer",
+	"GHGifAssembler": "🐴 GIF Assembler",
+	"GHImageMask": "🐴 Image Mask",
+	"GHImageCrop": "🐴 Image Crop",
+	"GHPromptBuffer": "🐴 Prompt Buffer",
+	"GHImageAutoloader": "🐴 Image Autoloader",
 }
 
 __all__ = [

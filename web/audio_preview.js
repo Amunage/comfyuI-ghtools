@@ -229,5 +229,14 @@ app.registerExtension({
                 }
             });
         });
+
+        api.addEventListener("execution_interrupted", () => {
+            app.graph._nodes.forEach((node) => {
+                if (node.type === 'GHAudioPreview') {
+                    node.isWaiting = false;
+                    node.updateButtons?.();
+                }
+            });
+        });
     }
 });

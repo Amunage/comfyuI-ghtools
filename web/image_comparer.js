@@ -9,6 +9,53 @@ function measureText(ctx, text) {
     return ctx.measureText(text).width;
 }
 
+async function sendComparerMessage(nodeId, action) {
+    try {
+        const response = await api.fetchApi("/ghtools/image_comparer_message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ node_id: nodeId, action }),
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Image comparer message failed:", error);
+        return { code: -1, error: error.message };
+    }
+}
+
+function buildImagesFromOutput(output) {
+    if ("images" in output) {
+        return (output.images || []).map((d, i) => ({
+            name: i === 0 ? "A" : "B",
+            selected: true,
+            url: imageDataToUrl(d),
+        }));
+    }
+
+    output.a_images = output.a_images || [];
+    output.b_images = output.b_images || [];
+    const imagesToChoose = [];
+    const multiple = output.a_images.length + output.b_images.length > 2;
+
+    for (const [i, d] of output.a_images.entries()) {
+        imagesToChoose.push({
+            name: output.a_images.length > 1 || multiple ? `A${i + 1}` : "A",
+            selected: i === 0,
+            url: imageDataToUrl(d),
+        });
+    }
+
+    for (const [i, d] of output.b_images.entries()) {
+        imagesToChoose.push({
+            name: output.b_images.length > 1 || multiple ? `B${i + 1}` : "B",
+            selected: i === 0,
+            url: imageDataToUrl(d),
+        });
+    }
+
+    return imagesToChoose;
+}
+
 app.registerExtension({
     name: "gh.ImageComparer",
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -25,6 +72,7 @@ app.registerExtension({
                 
                 this.imageIndex = 0;
                 this.imgs = [];
+                this.isWaiting = false;
                 this.serialize_widgets = true;
                 this.isPointerDown = false;
                 this.isPointerOver = false;
@@ -90,47 +138,17 @@ app.registerExtension({
             };
 
             // imgs 배열을 비워서 ComfyUI가 이미지 UI를 표시하지 않도록 함
-            const origOnExecuted = nodeType.prototype.onExecuted;
             nodeType.prototype.onExecuted = function(output) {
                 // 먼저 canvasWidget 초기화 확인
                 if (!this.canvasWidget) return;
-                
-                if ("images" in output) {
-                    this.canvasWidget.value = {
-                        images: (output.images || []).map((d, i) => {
-                            return {
-                                name: i === 0 ? "A" : "B",
-                                selected: true,
-                                url: imageDataToUrl(d),
-                            };
-                        }),
-                    };
-                }
-                else {
-                    output.a_images = output.a_images || [];
-                    output.b_images = output.b_images || [];
-                    const imagesToChoose = [];
-                    const multiple = output.a_images.length + output.b_images.length > 2;
-                    for (const [i, d] of output.a_images.entries()) {
-                        imagesToChoose.push({
-                            name: output.a_images.length > 1 || multiple ? `A${i + 1}` : "A",
-                            selected: i === 0,
-                            url: imageDataToUrl(d),
-                        });
-                    }
-                    for (const [i, d] of output.b_images.entries()) {
-                        imagesToChoose.push({
-                            name: output.b_images.length > 1 || multiple ? `B${i + 1}` : "B",
-                            selected: i === 0,
-                            url: imageDataToUrl(d),
-                        });
-                    }
-                    this.canvasWidget.value = { images: imagesToChoose };
-                }
+
+                this.canvasWidget.value = { images: buildImagesFromOutput(output) };
+                this.isWaiting = false;
                 
                 // ComfyUI의 기본 이미지 배열을 비워서 기본 UI가 표시되지 않도록 함
                 // (이미지는 커스텀 위젯에서 관리)
                 this.imgs = [];
+                this.setDirtyCanvas(true, true);
             };
 
             const origGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
@@ -159,6 +177,56 @@ app.registerExtension({
                     );
                 }
             };
+        }
+    },
+    setup() {
+        const TYPE = "GHImageComparer";
+
+        api.addEventListener("ghtools-image-comparer-images", (event) => {
+            const node = app.graph._nodes_by_id[event.detail.id];
+            if (!node || node.type !== TYPE || !node.canvasWidget) {
+                return;
+            }
+
+            const output = {
+                a_images: event.detail.a_images || [],
+                b_images: event.detail.b_images || [],
+            };
+            node.canvasWidget.value = { images: buildImagesFromOutput(output) };
+            node.setDirtyCanvas(true, true);
+        });
+
+        api.addEventListener("ghtools-image-comparer-waiting", (event) => {
+            const node = app.graph._nodes_by_id[event.detail.id];
+            if (node && node.type === TYPE) {
+                node.isWaiting = true;
+                node.setDirtyCanvas(true, true);
+            }
+        });
+
+        api.addEventListener("ghtools-image-comparer-keep-selection", (event) => {
+            const node = app.graph._nodes_by_id[event.detail.id];
+            if (node && node.type === TYPE) {
+                node.isWaiting = false;
+                node.setDirtyCanvas(true, true);
+            }
+        });
+
+        api.addEventListener("ghtools-image-comparer-retry", () => {
+            setTimeout(() => {
+                app.queuePrompt(0, 1);
+            }, 100);
+        });
+
+        for (const eventName of ["execution_start", "execution_cached", "execution_error", "execution_interrupted"]) {
+            api.addEventListener(eventName, () => {
+                app.graph._nodes.forEach((node) => {
+                    if (node.type === TYPE) {
+                        node.isWaiting = false;
+                        node.setDirtyCanvas(true, true);
+                    }
+                });
+            });
         }
     },
 });
@@ -285,6 +353,9 @@ class GHImageComparerWidget {
 
     draw(ctx, node, width, y) {
         this.hitAreas = {};
+
+        y = this.drawActionButtons(ctx, node, y);
+
         if (this.value.images.length > 2) {
             ctx.textAlign = "left";
             ctx.textBaseline = "top";
@@ -324,6 +395,72 @@ class GHImageComparerWidget {
             if (node.isPointerOver) {
                 this.drawImage(ctx, this.selected[1], y, this.node.pointerOverPos[0]);
             }
+        }
+    }
+
+    drawActionButtons(ctx, node, y) {
+        const labels = [
+            { key: "A", text: "A" },
+            { key: "B", text: "B" },
+            { key: "retry", text: "Retry" },
+            { key: "cancel", text: "Cancel" },
+        ];
+
+        const horizontalMargin = 8;
+        const spacing = 4;
+        const buttonHeight = 20;
+        const totalSpacing = spacing * (labels.length - 1);
+        const buttonWidth = (node.size[0] - horizontalMargin * 2 - totalSpacing) / labels.length;
+        let buttonX = horizontalMargin;
+
+        for (const item of labels) {
+            const isPressed = this.downedHitAreasForClick.some((part) => part.key === `select_${item.key}` && part.wasMouseClickedAndIsOver);
+            const isWaiting = !!node.isWaiting;
+            const alpha = isWaiting ? 1 : 0.45;
+
+            ctx.fillStyle = isPressed
+                ? `rgba(95, 145, 95, ${alpha})`
+                : `rgba(35, 35, 35, ${alpha})`;
+            ctx.strokeStyle = `rgba(100, 100, 100, ${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(buttonX, y, buttonWidth, buttonHeight, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = `rgba(230, 230, 230, ${alpha})`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "12px Arial";
+            ctx.fillText(item.text, buttonX + buttonWidth / 2, y + buttonHeight / 2);
+
+            this.hitAreas[`select_${item.key}`] = {
+                key: `select_${item.key}`,
+                bounds: [buttonX, y, buttonWidth, buttonHeight],
+                data: item.key,
+                onClick: this.onActionButtonClick.bind(this),
+            };
+
+            buttonX += buttonWidth + spacing;
+        }
+
+        return y + buttonHeight + 8;
+    }
+
+    async onActionButtonClick(event, pos, node, bounds) {
+        if (!node.isWaiting) {
+            return;
+        }
+
+        const action = bounds?.data;
+        if (!action) {
+            return;
+        }
+
+        const result = await sendComparerMessage(node.id, action);
+        if (result?.code === 1) {
+            node.isWaiting = false;
+            node.setDirtyCanvas(true, true);
         }
     }
 
