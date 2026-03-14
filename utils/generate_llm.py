@@ -48,7 +48,7 @@ class GenerateLLM:
 				"model": (
 					"STRING",
 					{
-						"default": "gemini-2.0-flash",
+						"default": "gemini-2.5-flash-lite",
 						"multiline": False,
 						"placeholder": "gemini model name",
 					},

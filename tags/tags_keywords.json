@@ -18,10 +18,10 @@
   },
   "body": {
     "TAG_BODYTYPE": {
-      "날씬한 몸": "petite,",
       "슬렌더": "slender,",
-      "포동포동한 몸": "plump,",
+      "날씬한 몸": "petite,",
       "비만": "obese,",
+      "포동포동한 몸": "plump,",
       "탄력 있는 몸": "toned,",
       "근육질 몸": "muscular,",
       "굴곡진 몸": "curvy,",
@@ -174,7 +174,7 @@
       "나사 모양 눈": "symbol-shaped pupils cross-shaped pupils,"
     },
     "TAG_EYESURROUND": {
-      "애교살": "aegyo sal,",
+      "애굣살": "aegyo sal,",
       "다크서클": "bags under eyes,",
       "멍듬": "bruised eye,",
       "아이라이너": "makeup, eyeliner,",
@@ -226,22 +226,23 @@
       "돌출된 유두": "erect nipple,",
       "납작한 유두": "flat nipple,",
       "민감한 유두": "sensitive nipple,",
-      "젖꼭지 링": "nipple ring,"
+      "유두 링": "nipple ring,"
     },
     "TAG_PUSSY": {
-      "보지": "pussy,",
+      "음문": "pussy,",
       "질": "vagina,",
       "요도": "urethra,",
       "사타구니": "crotch,",
+      "자궁": "uterus,",
       "음모": "pubic hair,",
-      "면도한 보지": "shaved pussy,",
-      "털수북 보지": "hairy pussy,",
-      "일자 보지": "innie pussy,",
-      "열린 보지": "loose pussy,",
-      "통통한 보지": "plump labia,",
-      "젖은 보지": "pussy juice,",
-      "다리로 열린 보지": "gaping pussy,",
-      "손으로 열린 보지": "spread pussy,"
+      "면도한 음문": "shaved pussy,",
+      "털수북 음문": "hairy pussy,",
+      "일자 음문": "innie pussy,",
+      "열린 음문": "loose pussy,",
+      "통통한 음문": "plump labia,",
+      "젖은 음문": "pussy juice,",
+      "다리로 열린 음문": "gaping pussy,",
+      "손으로 열린 음문": "spread pussy,"
     },
     "TAG_LABIA": {
       "음순": "labia,",
@@ -252,9 +253,17 @@
       "부푼 음순": "puffy labia,",
       "까만 음순": "dark labia,",
       "핑크 음순": "pink labia,",
-      "클리토리스": "clitoris,",
-      "큰 클리토리스": "large clit,",
-      "작은 클리토리스": "small clit,"
+      "음핵": "clitoris,",
+      "큰 음핵": "large clit,",
+      "작은 음핵": "small clit,"
+    },
+    "TAG_PENIS": {
+      "음경": "penis,",
+      "작은 음경": "small penis,",
+      "큰 음경": "large penis,",
+      "거대한 음경": "huge penis,",
+      "음경 리본": "penis ribbon,",
+      "음경 피어싱": "penis piercing,"
     },
     "TAG_ASS": {
       "엉덩이": "ass ,",
@@ -295,7 +304,7 @@
     },
     "TAG_HANDUPPER2": {
       "타인의 머리카락을 만짐": "adjusting another's hair,",
-      "어깨동무": "arm around shoulder,",
+      "타인의 어깨에 어깨동무": "arm around shoulder,",
       "타인의 볼을 당기기": "cheek pinching,",
       "타인의 볼을 찌르기": "cheek poking,",
       "타인의 목을 조름": "strangling,",
@@ -311,8 +320,8 @@
       "자신의 팔을 잡음": "hand on own arm,",
       "자신의 팔꿈치를 잡음": "hand on own elbow,",
       "자신의 양팔을 잡음": "hands on own arms,",
-      "손에 머리를 얹고 쉬는 자세": "head rest,",
-      "팔을 V자로 모아 가슴을 압박함": "v arms,"
+      "자신의 손에 머리를 얹고 쉬는 자세": "head rest,",
+      "자신의 팔을 모아 가슴을 압박함": "v arms,"
     },
     "TAG_HANDCHEST2": {
       "타인의 팔을 만짐": "hand on another's arm,",

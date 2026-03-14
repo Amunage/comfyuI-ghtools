@@ -2,15 +2,43 @@
 Audio Controller Node - 애니메 캐릭터 음성 톤 컨트롤러
 Praat PSOLA 알고리즘 + 스펙트럴 프로세싱으로 자연스러운 캐릭터 보이스 생성
 """
+import importlib
+import subprocess
+import sys
+
 import numpy as np
 import torch
+
+
+def _ensure_package(package_name, import_name=None):
+    """패키지가 없으면 자동 설치 후 import"""
+    import_name = import_name or package_name
+    try:
+        return importlib.import_module(import_name)
+    except ImportError:
+        pass
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", package_name],
+            stdout=subprocess.DEVNULL,
+        )
+        return importlib.import_module(import_name)
+    except Exception as exc:
+        raise RuntimeError(
+            f"`{package_name}` 자동 설치 실패. "
+            f"직접 `pip install {package_name}` 후 다시 시도해 주세요."
+        ) from exc
+
+
+_scipy = _ensure_package("scipy")
 from scipy import signal as scipy_signal
 
 try:
+    _ensure_package("praat-parselmouth", "parselmouth")
     import parselmouth
     from parselmouth.praat import call
     PARSELMOUTH_AVAILABLE = True
-except ImportError:
+except Exception:
     PARSELMOUTH_AVAILABLE = False
 
 

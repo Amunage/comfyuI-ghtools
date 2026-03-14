@@ -36,11 +36,18 @@ async function refreshPreview(node, folderPath, previewWidget) {
     previewWidget.setStatus("Loading...");
     node.setDirtyCanvas(true, true);
 
+    const sortByWidget = node.widgets?.find((w) => w.name === "sort_by");
+    const sortOrderWidget = node.widgets?.find((w) => w.name === "sort_order");
+
     try {
         const response = await api.fetchApi("/ghtools/image_autoloader_preview", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_path: folderPath }),
+            body: JSON.stringify({
+                folder_path: folderPath,
+                sort_by: sortByWidget?.value || "time",
+                sort_order: sortOrderWidget?.value || "descending",
+            }),
         });
         const result = await response.json();
 
@@ -95,21 +102,27 @@ app.registerExtension({
                 new GHImageAutoloaderPreviewWidget("gh_image_autoloader_preview", this)
             );
 
+            // 위젯 순서: folder_path → sort_by → sort_order → buttons → preview
             const widgets = this.widgets || [];
+            const sortByWidget = widgets.find((w) => w.name === "sort_by");
+            const sortOrderWidget = widgets.find((w) => w.name === "sort_order");
+            const buttonW = this.imageAutoloaderButtons;
+            const previewW = this.imageAutoloaderPreview;
             const folderIdx = widgets.indexOf(folderPathWidget);
-            const buttonIdx = widgets.indexOf(this.imageAutoloaderButtons);
-            const previewIdx = widgets.indexOf(this.imageAutoloaderPreview);
 
-            if (folderIdx >= 0 && buttonIdx >= 0 && buttonIdx !== folderIdx + 1) {
-                widgets.splice(buttonIdx, 1);
-                widgets.splice(folderIdx + 1, 0, this.imageAutoloaderButtons);
-            }
-
-            const latestButtonIdx = widgets.indexOf(this.imageAutoloaderButtons);
-            const latestPreviewIdx = widgets.indexOf(this.imageAutoloaderPreview);
-            if (latestButtonIdx >= 0 && latestPreviewIdx >= 0 && latestPreviewIdx !== latestButtonIdx + 1) {
-                widgets.splice(latestPreviewIdx, 1);
-                widgets.splice(latestButtonIdx + 1, 0, this.imageAutoloaderPreview);
+            if (folderIdx >= 0) {
+                // 재배치할 위젯을 먼저 제거
+                const toReorder = [sortByWidget, sortOrderWidget, buttonW, previewW].filter(Boolean);
+                for (const w of toReorder) {
+                    const idx = widgets.indexOf(w);
+                    if (idx >= 0) widgets.splice(idx, 1);
+                }
+                // folder_path 바로 뒤에 순서대로 삽입
+                let insertIdx = widgets.indexOf(folderPathWidget) + 1;
+                for (const w of toReorder) {
+                    widgets.splice(insertIdx, 0, w);
+                    insertIdx++;
+                }
             }
 
             this.imageAutoloaderPreview.setStatus("No preview image");

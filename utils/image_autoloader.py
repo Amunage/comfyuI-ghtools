@@ -20,21 +20,30 @@ IMAGE_EXTENSIONS = {
 
 def _find_latest_image(folder: str):
     """폴더 내에서 수정시간 기준 가장 최신 이미지 파일 경로를 반환한다."""
-    latest_path = None
-    latest_mtime = -1.0
+    return _find_image(folder, "time", "descending")
 
+
+def _find_image(folder: str, sort_by: str = "time", sort_order: str = "descending"):
+    """폴더 내에서 정렬 기준/순서에 따라 이미지 파일 경로를 반환한다."""
+    entries = []
     for entry in os.scandir(folder):
         if not entry.is_file():
             continue
         ext = os.path.splitext(entry.name)[1].lower()
         if ext not in IMAGE_EXTENSIONS:
             continue
-        mtime = entry.stat().st_mtime
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-            latest_path = entry.path
+        entries.append(entry)
 
-    return latest_path
+    if not entries:
+        return None
+
+    reverse = (sort_order == "descending")
+    if sort_by == "name":
+        entries.sort(key=lambda e: e.name.lower(), reverse=reverse)
+    else:  # time
+        entries.sort(key=lambda e: e.stat().st_mtime, reverse=reverse)
+
+    return entries[0].path
 
 
 def _create_preview_image_info(image_path: str):
@@ -207,6 +216,8 @@ class ImageAutoloader(PreviewImage):
         return {
             "required": {
                 "folder_path": ("STRING", {"default": "", "multiline": False}),
+                "sort_by": (["time", "name"],),
+                "sort_order": (["descending", "ascending"],),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -221,25 +232,26 @@ class ImageAutoloader(PreviewImage):
     OUTPUT_NODE = True
 
     @classmethod
-    def IS_CHANGED(cls, folder_path="", **kwargs):
+    def IS_CHANGED(cls, folder_path="", sort_by="time", sort_order="descending", **kwargs):
         path = folder_path.strip().strip('"')
         if not path or not os.path.isdir(path):
             return ""
-        latest = _find_latest_image(path)
-        if latest is None:
+        target = _find_image(path, sort_by, sort_order)
+        if target is None:
             return ""
-        return os.path.getmtime(latest)
+        return f"{sort_by}_{sort_order}_{os.path.getmtime(target)}_{os.path.basename(target)}"
 
-    def load_latest(self, folder_path="", prompt=None, extra_pnginfo=None):
+    def load_latest(self, folder_path="", sort_by="time", sort_order="descending",
+                    prompt=None, extra_pnginfo=None):
         path = folder_path.strip().strip('"')
         if not path or not os.path.isdir(path):
             raise ValueError(f"유효하지 않은 폴더 경로: {folder_path}")
 
-        latest = _find_latest_image(path)
-        if latest is None:
+        target = _find_image(path, sort_by, sort_order)
+        if target is None:
             raise FileNotFoundError(f"이미지를 찾을 수 없습니다: {path}")
 
-        img = Image.open(latest)
+        img = Image.open(target)
         img = ImageOps.exif_transpose(img)
 
         if img.mode == "I":
@@ -289,13 +301,15 @@ async def handle_image_autoloader_preview(request):
     if not folder_path or not os.path.isdir(folder_path):
         return web.json_response({"code": 0, "error": "Invalid folder path"})
 
-    latest = _find_latest_image(folder_path)
-    if latest is None:
+    sort_by = str(data.get("sort_by", "time"))
+    sort_order = str(data.get("sort_order", "descending"))
+    target = _find_image(folder_path, sort_by, sort_order)
+    if target is None:
         return web.json_response({"code": 0, "error": "No image found"})
 
     try:
-        preview = await asyncio.to_thread(_create_preview_image_info, latest)
+        preview = await asyncio.to_thread(_create_preview_image_info, target)
     except Exception as exc:
         return web.json_response({"code": -1, "error": str(exc)})
 
-    return web.json_response({"code": 1, "image": preview, "source_path": latest})
+    return web.json_response({"code": 1, "image": preview, "source_path": target})

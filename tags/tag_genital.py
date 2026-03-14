@@ -24,6 +24,10 @@ class TagGenitalNode(TagNodeBase):
                     dropdown(keywords["TAG_LABIA"].keys()),
                     {"default": "none"},
                 ),
+                "penis": (
+                    dropdown(keywords["TAG_PENIS"].keys()),
+                    {"default": "none"},
+                ),
                 "ass": (
                     dropdown(keywords["TAG_ASS"].keys()),
                     {"default": "none"},
@@ -44,7 +48,7 @@ class TagGenitalNode(TagNodeBase):
     FUNCTION = "build_keywords"
     CATEGORY = "GHTools/Tags"
 
-    def build_keywords(self, nipple, pussy, labia, ass, text):
+    def build_keywords(self, nipple, pussy, labia, penis, ass, text):
         parts = []
 
         def add_from(mapping, key):
@@ -56,6 +60,7 @@ class TagGenitalNode(TagNodeBase):
             (self.TAG_NIPPLE, nipple),
             (self.TAG_PUSSY, pussy),
             (self.TAG_LABIA, labia),
+            (self.TAG_PENIS, penis),
             (self.TAG_ASS, ass),
         ):
             if key != "none":

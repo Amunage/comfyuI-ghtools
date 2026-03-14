@@ -102,6 +102,22 @@ def _restore_size(cropped, orig_h, orig_w):
     return x.permute(0, 2, 3, 1)
 
 
+def _make_mask(batch_size, orig_h, orig_w, crop):
+    """크롭 영역이 1.0, 나머지가 0.0인 마스크 생성 (batch, H, W)"""
+    x = max(0, int(crop["x"]))
+    y = max(0, int(crop["y"]))
+    w = max(1, int(crop["width"]))
+    h = max(1, int(crop["height"]))
+    x = min(x, orig_w - 1)
+    y = min(y, orig_h - 1)
+    w = min(w, orig_w - x)
+    h = min(h, orig_h - y)
+
+    mask = torch.zeros((batch_size, orig_h, orig_w), dtype=torch.float32)
+    mask[:, y:y + h, x:x + w] = 1.0
+    return mask
+
+
 class ImageCrop(PreviewImage):
 
     NAME = "GH Image Crop"
@@ -109,8 +125,8 @@ class ImageCrop(PreviewImage):
     FUNCTION = "crop_image"
     DESCRIPTION = "Preview an image and interactively crop a region by mouse drag."
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "mask")
     OUTPUT_NODE = True
 
     @classmethod
@@ -141,9 +157,10 @@ class ImageCrop(PreviewImage):
         result = {"ui": {"images": saved["ui"]["images"]}}
         _, orig_h, orig_w, _ = image.shape
 
-        # Always Pass — bypass
+        # Always Pass — bypass (전체 영역 마스크)
         if mode == "Always Pass":
-            result["result"] = (image,)
+            full_mask = torch.ones((image.shape[0], orig_h, orig_w), dtype=torch.float32)
+            result["result"] = (image, full_mask)
             return result
 
         # Keep Last Area — reuse cached crop without waiting
@@ -153,9 +170,10 @@ class ImageCrop(PreviewImage):
             if node_id in cache and "last_crop" in cache[node_id]:
                 crop = cache[node_id]["last_crop"]
                 cropped = _do_crop(image, crop)
+                mask = _make_mask(image.shape[0], orig_h, orig_w, crop)
                 if restore_original_size:
                     cropped = _restore_size(cropped, orig_h, orig_w)
-                result["result"] = (cropped,)
+                result["result"] = (cropped, mask)
             else:
                 # no last crop yet — fall through to interactive
                 try:
@@ -164,7 +182,8 @@ class ImageCrop(PreviewImage):
                     })
                 except Exception:
                     pass
-                result["result"] = (image,)
+                full_mask = torch.ones((image.shape[0], orig_h, orig_w), dtype=torch.float32)
+                result["result"] = (image, full_mask)
             return result
 
         # Always Select — interactive
@@ -179,7 +198,8 @@ class ImageCrop(PreviewImage):
         crop = _wait_for_crop(unique_id)
 
         if crop is None:
-            result["result"] = (image,)
+            full_mask = torch.ones((image.shape[0], orig_h, orig_w), dtype=torch.float32)
+            result["result"] = (image, full_mask)
             return result
 
         # Save last crop for "Keep Last Area"
@@ -190,9 +210,10 @@ class ImageCrop(PreviewImage):
         cache[node_id]["last_crop"] = crop
 
         cropped = _do_crop(image, crop)
+        mask = _make_mask(image.shape[0], orig_h, orig_w, crop)
         if restore_original_size:
             cropped = _restore_size(cropped, orig_h, orig_w)
-        result["result"] = (cropped,)
+        result["result"] = (cropped, mask)
         return result
 
 
