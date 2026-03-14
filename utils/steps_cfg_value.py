@@ -37,7 +37,7 @@ class StepsCfgValue:
     RETURN_NAMES = ("steps", "cfg")
 
     FUNCTION = "select"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def select(self, steps: int, cfg: float):
         return (max(1, int(steps)), float(cfg))

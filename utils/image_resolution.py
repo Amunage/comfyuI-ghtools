@@ -61,7 +61,7 @@ class ImageResolutionNode:
 	RETURN_TYPES = ("INT", "INT")
 	RETURN_NAMES = ("width", "height")
 	FUNCTION = "resolve"
-	CATEGORY = "GHTools/Utils"
+	CATEGORY = "🐴GHTools/Utils"
 
 	def resolve(self, preset, width, height):
 		if preset != "custom":

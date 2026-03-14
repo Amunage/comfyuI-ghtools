@@ -178,7 +178,7 @@ class ForkSelection:
     RETURN_TYPES = (ANY_TYPE, ANY_TYPE)
     RETURN_NAMES = ("output_A", "output_B")
     FUNCTION = "execute"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     
     @classmethod
     def IS_CHANGED(cls, input, mode, unique_id):

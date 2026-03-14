@@ -1,5 +1,5 @@
 """
-Audio Controller Node - 애니메 캐릭터 음성 톤 컨트롤러
+Audio Controller Node - 캐릭터 음성 톤 컨트롤러
 Praat PSOLA 알고리즘 + 스펙트럴 프로세싱으로 자연스러운 캐릭터 보이스 생성
 """
 import importlib
@@ -40,17 +40,6 @@ try:
     PARSELMOUTH_AVAILABLE = True
 except Exception:
     PARSELMOUTH_AVAILABLE = False
-
-
-# ─── 캐릭터 프리셋 정의 ───────────────────────────────────────────
-# (pitch_semitones, formant_ratio, presence, breathiness)
-CHARACTER_PRESETS = {
-    "Custom":    (0.0, 1.0,  0.0, 0.0),
-    "Kawaii":    (2.0, 1.1, 0.3, 0.15),   # 귀여운 여성 캐릭터
-    "Cool":      (1.0, 1.0, 0.15, 0.0),   # 쿨한 캐릭터
-    "Loli":      (3.0, 1.2, 0.4, 0.1),    # 어린 캐릭터
-    "Onee-san":  (-1.0, 1.0, 0.2, 0.2),    # 성숙한 언니 캐릭터
-}
 
 
 def pitch_shift_psola(audio_np, sample_rate, semitones, formant_ratio=1.0):
@@ -140,7 +129,7 @@ def apply_presence_boost(audio_np, sample_rate, amount):
 def apply_breathiness(audio_np, sample_rate, amount):
     """
     브레시니스: 가벼운 고주파 노이즈를 음성 엔벨로프에 맞춰 섞어
-    에어리한 숨결감을 부여 (애니메 여성 캐릭터에 효과적)
+    에어리한 숨결감을 부여.
     amount: 0.0(없음) ~ 1.0(강하게)
     """
     if amount <= 0.001:
@@ -192,13 +181,12 @@ def normalize_volume(audio_np, target_rms=None, original_rms=None):
     return result
 
 
-class AudioController:
+class AudioVocalRange:
     """
-    애니메 캐릭터 음성 톤 컨트롤러 (Praat PSOLA + 스펙트럴 프로세싱)
-    - 캐릭터 프리셋: 원클릭으로 애니메 캐릭터 톤 적용
+    음성 톤 컨트롤러 (Praat PSOLA + 스펙트럴 프로세싱)
     - 피치 시프팅: 자연스러운 목소리 톤 변경 (반음 단위)
     - 포먼트 제어: 자연스러움 vs 캐릭터 느낌 조절
-    - 프레즌스 부스트: 2-5kHz 강조로 밝고 선명한 애니메 톤
+    - 프레즌스 부스트: 2-5kHz 강조로 밝고 선명한 톤
     - 브레시니스: 에어리한 숨결감 부여
     - 음량 정규화: 처리 후 음량 자동 보정
     """
@@ -208,10 +196,6 @@ class AudioController:
         return {
             "required": {
                 "audio": ("AUDIO",),
-                "preset": (list(CHARACTER_PRESETS.keys()), {
-                    "default": "Custom",
-                    "tooltip": "캐릭터 프리셋. Custom 외 선택 시 아래 수치를 프리셋 값으로 덮어씀",
-                }),
                 "pitch_semitones": ("FLOAT", {
                     "default": 0.0,
                     "min": -12.0,
@@ -231,14 +215,14 @@ class AudioController:
                     "min": 0.0,
                     "max": 1.0,
                     "step": 0.05,
-                    "tooltip": "프레즌스 부스트(2-5kHz). 높을수록 밝고 선명한 애니메 톤",
+                    "tooltip": "프레즌스 부스트(2-5kHz). 높을수록 밝고 선명한 톤",
                 }),
                 "breathiness": ("FLOAT", {
                     "default": 0.0,
                     "min": 0.0,
                     "max": 1.0,
                     "step": 0.05,
-                    "tooltip": "브레시니스. 에어리한 숨결감 (여성 캐릭터에 효과적)",
+                    "tooltip": "브레시니스. 에어리한 숨결감.",
                 }),
                 "normalize": ("BOOLEAN", {
                     "default": True,
@@ -246,7 +230,7 @@ class AudioController:
                 }),
                 "enabled": ("BOOLEAN", {
                     "default": True,
-                    "tooltip": "False로 설정하면 바이패스 (원본 그대로 출력)",
+                    "tooltip": "False로 설정하면 바이패스 (원본 출력)",
                 }),
             },
         }
@@ -254,9 +238,9 @@ class AudioController:
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "execute"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
-    def execute(self, audio, preset, pitch_semitones, formant_ratio,
+    def execute(self, audio, pitch_semitones, formant_ratio,
                 presence, breathiness, normalize, enabled):
         # 바이패스
         if not enabled:
@@ -267,14 +251,6 @@ class AudioController:
                 "parselmouth가 설치되어 있지 않습니다.\n"
                 "pip install praat-parselmouth 로 설치해주세요."
             )
-
-        # 프리셋 적용 (Custom이 아닌 경우 프리셋 값 사용)
-        if preset != "Custom":
-            p_pitch, p_formant, p_presence, p_breathiness = CHARACTER_PRESETS[preset]
-            pitch_semitones = p_pitch
-            formant_ratio = p_formant
-            presence = p_presence
-            breathiness = p_breathiness
 
         waveform = audio["waveform"]        # (batch, channels, samples)
         sample_rate = audio["sample_rate"]
@@ -314,7 +290,7 @@ class AudioController:
                         y = normalize_volume(y, original_rms=original_rms)
 
                 except Exception as e:
-                    print(f"[AudioController] 채널 처리 실패 (batch={b}, ch={ch}): {e}")
+                    print(f"[AudioVocalRange] 채널 처리 실패 (batch={b}, ch={ch}): {e}")
                     y = waveform[b, ch].cpu().numpy().astype(np.float64)
 
                 channel_results.append(torch.from_numpy(np.array(y, dtype=np.float32)))

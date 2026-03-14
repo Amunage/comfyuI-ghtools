@@ -131,7 +131,7 @@ class GifDecomposer:
 	RETURN_TYPES = ("IMAGE", "STRING")
 	RETURN_NAMES = ("image", "image_info")
 	FUNCTION = "decompose"
-	CATEGORY = "GHTools/Utils"
+	CATEGORY = "🐴GHTools/Utils"
 
 	@classmethod
 	def VALIDATE_INPUTS(cls, gif_path, **kwargs):

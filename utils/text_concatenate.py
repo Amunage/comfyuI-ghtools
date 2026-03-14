@@ -36,7 +36,7 @@ class TextConcatenate:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "func"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def func(self, **kwargs):
         text = ""
@@ -91,7 +91,7 @@ class TextConcatenateToggle:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "func"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def _group_inputs(self, kwargs):
         grouped = {}

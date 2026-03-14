@@ -80,7 +80,7 @@ class GifAssembler:
 	RETURN_TYPES = ("IMAGE",)
 	RETURN_NAMES = ("image",)
 	FUNCTION = "assemble"
-	CATEGORY = "GHTools/Utils"
+	CATEGORY = "🐴GHTools/Utils"
 	OUTPUT_NODE = True
 
 	def assemble(

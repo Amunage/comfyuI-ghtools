@@ -228,7 +228,7 @@ class ImageAutoloader(PreviewImage):
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("image", "mask")
     FUNCTION = "load_latest"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     OUTPUT_NODE = True
 
     @classmethod

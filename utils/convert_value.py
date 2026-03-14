@@ -20,7 +20,7 @@ class ConvertValue:
     FUNCTION = "convert"
 
     # 카테고리
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def convert(self, value: float):
         """

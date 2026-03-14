@@ -179,7 +179,7 @@ class AnySelection:
     RETURN_TYPES = (ANY_TYPE,)
     RETURN_NAMES = ("output",)
     FUNCTION = "execute"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     
     @classmethod
     def IS_CHANGED(cls, input_A, input_B, mode, unique_id):

@@ -182,7 +182,7 @@ class AudioPreview:
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "execute"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     OUTPUT_NODE = True
     
     @classmethod

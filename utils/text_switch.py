@@ -31,7 +31,7 @@ class TextSwitch:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "func"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def func(self, switch: bool, text: str):
         if switch:

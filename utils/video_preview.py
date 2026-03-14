@@ -199,7 +199,7 @@ class VideoPreview:
     RETURN_NAMES = ("Filenames", "images")
     OUTPUT_NODE = True
     FUNCTION = "execute"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):

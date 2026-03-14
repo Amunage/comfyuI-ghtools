@@ -13,7 +13,7 @@ from .gif_decomposer import GifDecomposer
 from .gif_assembler import GifAssembler
 
 from .audio_preview import AudioPreview
-from .audio_controller import AudioController
+from .audio_vocalrange import AudioVocalRange
 
 from .generate_llm import GenerateLLM
 from .prompt_buffer import PromptBuffer
@@ -39,7 +39,7 @@ NODE_CLASS_MAPPINGS = {
 	"GHGifAssembler": GifAssembler,
     
 	"GHAudioPreview": AudioPreview,
-	"GHAudioController": AudioController,
+	"GHAudioVocalRange": AudioVocalRange,
     
 	"GHGenerateLLM": GenerateLLM,
 	"GHPromptBuffer": PromptBuffer,
@@ -67,7 +67,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"GHGifAssembler": "🐴 GIF Assembler",
     
 	"GHAudioPreview": "🐴 Audio Preview",
-	"GHAudioController": "🐴 Audio Controller",
+	"GHAudioVocalRange": "🐴 Audio Vocal Range",
     
 	"GHGenerateLLM": "🐴 Generate LLM",
 	"GHPromptBuffer": "🐴 Prompt Buffer",

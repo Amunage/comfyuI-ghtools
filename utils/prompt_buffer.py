@@ -22,7 +22,7 @@ class PromptBuffer:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("positive", "negative")
     FUNCTION = "func"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     OUTPUT_NODE = True
 
     def func(self, positive=None, negative=None):

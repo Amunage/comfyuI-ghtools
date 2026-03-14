@@ -129,7 +129,7 @@ class ImageComparer(PreviewImage):
   """A node that compares two images in the UI."""
 
   NAME = 'GH Image Comparer'
-  CATEGORY = 'GHTools/Utils'
+  CATEGORY = '🐴GHTools/Utils'
   FUNCTION = "compare_images"
   DESCRIPTION = "Compares two images with a hover slider, or click from properties."
   

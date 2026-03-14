@@ -75,7 +75,7 @@ class GenerateLLM:
 	RETURN_TYPES = ("STRING",)
 	RETURN_NAMES = ("result",)
 	FUNCTION = "generate"
-	CATEGORY = "GHTools/Utils"
+	CATEGORY = "🐴GHTools/Utils"
 
 	def generate(self, switch: bool, model: str, api_key: str, text: str):
 		if not switch:

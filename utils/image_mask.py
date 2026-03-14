@@ -128,7 +128,7 @@ class ImageMask:
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("image", "mask")
     FUNCTION = "make_mask"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
 
     def make_mask(self, image, red, green, blue, alpha, threshold, min_region_size, mask_grow, feather, connected_only):
         if not isinstance(image, torch.Tensor):

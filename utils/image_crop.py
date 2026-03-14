@@ -121,7 +121,7 @@ def _make_mask(batch_size, orig_h, orig_w, crop):
 class ImageCrop(PreviewImage):
 
     NAME = "GH Image Crop"
-    CATEGORY = "GHTools/Utils"
+    CATEGORY = "🐴GHTools/Utils"
     FUNCTION = "crop_image"
     DESCRIPTION = "Preview an image and interactively crop a region by mouse drag."
 
