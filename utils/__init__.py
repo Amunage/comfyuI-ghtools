@@ -16,7 +16,7 @@ from .audio_preview import AudioPreview
 from .audio_controller import AudioController
 
 from .generate_llm import GenerateLLM
-from .Prompt_buffer import PromptBuffer
+from .prompt_buffer import PromptBuffer
 from .steps_cfg_value import StepsCfgValue
 from .convert_value import ConvertValue
 from .selection_output import ForkSelection
