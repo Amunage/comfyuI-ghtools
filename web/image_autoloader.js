@@ -26,6 +26,58 @@ async function pickFolder(folderPath) {
     }
 }
 
+async function pickImage(folderPath) {
+    try {
+        const response = await api.fetchApi("/ghtools/image_autoloader_pick_image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folder_path: folderPath || "" }),
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Image autoloader image picker failed:", error);
+        return { code: -1, error: error.message };
+    }
+}
+
+async function loadImagePreview(node, filePath, previewWidget) {
+    if (!filePath || !previewWidget) {
+        previewWidget?.setStatus("No file selected");
+        node?.setDirtyCanvas(true, true);
+        return;
+    }
+
+    previewWidget.setStatus("Loading...");
+    node.setDirtyCanvas(true, true);
+
+    try {
+        const response = await api.fetchApi("/ghtools/image_autoloader_load_image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: filePath }),
+        });
+        const result = await response.json();
+
+        if (result?.code !== 1 || !result.image) {
+            previewWidget.value = { images: [] };
+            previewWidget.setStatus(result?.error || "Failed to load image");
+            node.setDirtyCanvas(true, true);
+            return;
+        }
+
+        previewWidget.value = {
+            images: [{ ...result.image, url: imageDataToUrl(result.image) }],
+        };
+        previewWidget.setStatus(result.source_path || "Image loaded");
+        node.setDirtyCanvas(true, true);
+    } catch (error) {
+        console.error("Image load failed:", error);
+        previewWidget.value = { images: [] };
+        previewWidget.setStatus(error.message || "Image load failed");
+        node.setDirtyCanvas(true, true);
+    }
+}
+
 async function refreshPreview(node, folderPath, previewWidget) {
     if (!folderPath || !previewWidget) {
         previewWidget?.setStatus("No folder selected");
@@ -91,12 +143,19 @@ app.registerExtension({
             this.serialize_widgets = true;
 
             const folderPathWidget = this.widgets?.find((widget) => widget.name === "folder_path");
+            const imagePathWidget = this.widgets?.find((widget) => widget.name === "image_path");
             if (!folderPathWidget || this.imageAutoloaderButtons || this.imageAutoloaderPreview) {
                 return;
             }
 
+            // image_path 위젯 숨기기
+            if (imagePathWidget) {
+                imagePathWidget.type = "hidden";
+                imagePathWidget.computeSize = () => [0, -4];
+            }
+
             this.imageAutoloaderButtons = this.addCustomWidget(
-                new GHImageAutoloaderButtonsWidget("gh_image_autoloader_buttons", this, folderPathWidget)
+                new GHImageAutoloaderButtonsWidget("gh_image_autoloader_buttons", this, folderPathWidget, imagePathWidget)
             );
             this.imageAutoloaderPreview = this.addCustomWidget(
                 new GHImageAutoloaderPreviewWidget("gh_image_autoloader_preview", this)
@@ -112,7 +171,7 @@ app.registerExtension({
 
             if (folderIdx >= 0) {
                 // 재배치할 위젯을 먼저 제거
-                const toReorder = [sortByWidget, sortOrderWidget, buttonW, previewW].filter(Boolean);
+                const toReorder = [sortByWidget, sortOrderWidget, imagePathWidget, buttonW, previewW].filter(Boolean);
                 for (const w of toReorder) {
                     const idx = widgets.indexOf(w);
                     if (idx >= 0) widgets.splice(idx, 1);
@@ -155,11 +214,12 @@ app.registerExtension({
 });
 
 class GHImageAutoloaderButtonsWidget {
-    constructor(name, node, folderPathWidget) {
+    constructor(name, node, folderPathWidget, imagePathWidget) {
         this.name = name;
         this.type = "custom";
         this.node = node;
         this.folderPathWidget = folderPathWidget;
+        this.imagePathWidget = imagePathWidget;
         this.options = { serialize: false };
         this.hitAreas = {};
         this.downedHitAreasForClick = [];
@@ -233,6 +293,7 @@ class GHImageAutoloaderButtonsWidget {
         const labels = [
             { key: "refresh", text: "Refresh" },
             { key: "folder", text: "Folder" },
+            { key: "load", text: "Load" },
         ];
 
         const horizontalMargin = 8;
@@ -286,6 +347,7 @@ class GHImageAutoloaderButtonsWidget {
 
         try {
             if (action === "refresh") {
+                if (this.imagePathWidget) this.imagePathWidget.value = "";
                 if (this.folderPathWidget?.value) {
                     await refreshPreview(node, this.folderPathWidget.value, node.imageAutoloaderPreview);
                 }
@@ -298,10 +360,26 @@ class GHImageAutoloaderButtonsWidget {
                     return;
                 }
 
+                if (this.imagePathWidget) this.imagePathWidget.value = "";
                 this.folderPathWidget.value = result.folder_path;
                 this.folderPathWidget.callback?.(result.folder_path, node, this.folderPathWidget);
                 node.setDirtyCanvas(true, true);
                 await refreshPreview(node, result.folder_path, node.imageAutoloaderPreview);
+                return;
+            }
+
+            if (action === "load") {
+                const result = await pickImage(this.folderPathWidget?.value || "");
+                if (result?.code !== 1 || !result.file_path) {
+                    return;
+                }
+
+                const parentDir = result.file_path.replace(/[/\\][^/\\]+$/, "");
+                this.folderPathWidget.value = parentDir;
+                this.folderPathWidget.callback?.(parentDir, node, this.folderPathWidget);
+                if (this.imagePathWidget) this.imagePathWidget.value = result.file_path;
+                node.setDirtyCanvas(true, true);
+                await loadImagePreview(node, result.file_path, node.imageAutoloaderPreview);
             }
         } finally {
             this.isHandlingClick = false;
