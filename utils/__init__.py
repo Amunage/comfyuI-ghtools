@@ -10,7 +10,7 @@ from .image_comparer import ImageComparer
 from .image_mask import ImageMask
 from .image_crop import ImageCrop
 
-from .video_preview import VideoPreview
+from .video_combine import VideoCombine
 from .gif_decomposer import GifDecomposer
 from .gif_assembler import GifAssembler
 
@@ -26,7 +26,7 @@ from .selection_input import AnySelection
 
 
 NODE_CLASS_MAPPINGS = {
-	"GHTagLoader": TagLoader,
+    "GHTagLoader": TagLoader,
     "GHTextSwitch": TextSwitch,
     "GHtextConcatenate": TextConcatenate,
     "GHtextConcatenateToggle": TextConcatenateToggle,
@@ -35,7 +35,7 @@ NODE_CLASS_MAPPINGS = {
     "GHImageResolutionNode": ImageResolutionNode,
     "GHImageMask": ImageMask,
     "GHImageCrop": ImageCrop,
-    "GHVideoPreview": VideoPreview,
+    "GHVideoCombine": VideoCombine,
     "GHGifDecomposer": GifDecomposer,
     "GHGifAssembler": GifAssembler,
     "GHAudioPreview": AudioPreview,
@@ -52,13 +52,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GHTagLoader": "🐴Tag Loader",
     "GHTextSwitch": "🐴Text Switch",
     "GHtextConcatenate": "🐴Text Concatenate",
-    "GHtextConcatenateToggle": "🐴Text Concatenate (Toggle)",
+    "GHtextConcatenateToggle": "🐴Text Concatenate(Toggle)",
     "GHImageAutoloader": "🐴Image Autoloader",
     "GHImageComparer": "🐴Image Comparer",
     "GHImageResolutionNode": "🐴Image Resolution",
     "GHImageMask": "🐴Image Mask",
     "GHImageCrop": "🐴Image Crop",
-    "GHVideoPreview": "🐴Video Preview",
+    "GHVideoCombine": "🐴Video Combine",
     "GHGifDecomposer": "🐴GIF Decomposer",
     "GHGifAssembler": "🐴GIF Assembler",
     "GHAudioPreview": "🐴Audio Preview",
@@ -69,7 +69,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GHConvertValue": "🐴Convert Value",
     "GHForkSelection": "🐴Selection Output",
     "GHAnySelection": "🐴Selection Input",
-    
 }
 
 __all__ = [

@@ -82,7 +82,7 @@ def _ensure_vhs():
 
 # ─── 미리보기 세션 관리 ───────────────────────────────────────────
 
-class VideoPreviewCancelled(Exception):
+class VideoCombineCancelled(Exception):
     pass
 
 
@@ -130,7 +130,7 @@ def wait_for_video_action(node_id, preview_info, period=0.1):
             info = data[node_id]
             if info.get("cancelled"):
                 _cleanup(node_id)
-                raise VideoPreviewCancelled()
+                raise VideoCombineCancelled()
             if info.get("action") is not None:
                 break
             time.sleep(period)
@@ -142,7 +142,7 @@ def wait_for_video_action(node_id, preview_info, period=0.1):
             return action
         return None
 
-    except VideoPreviewCancelled:
+    except VideoCombineCancelled:
         raise mm.InterruptProcessingException()
     except mm.InterruptProcessingException:
         _cleanup(str(node_id))
@@ -154,7 +154,7 @@ def wait_for_video_action(node_id, preview_info, period=0.1):
 
 # ─── VideoPreview 노드 ───────────────────────────────────────────
 
-class VideoPreview:
+class VideoCombine:
     """
     VHS VideoCombine 래퍼 — 미리보기 후 Save / Pass / Retry 선택
     인코딩은 VHS에 위임하고, 이 노드는 UI 제어만 담당한다.
@@ -178,7 +178,7 @@ class VideoPreview:
                 "images": (iorl,),
                 "frame_rate": (foi, {"default": 8, "min": 1, "step": 1}),
                 "loop_count": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
-                "filename_prefix": ("STRING", {"default": "VideoPreview"}),
+                "filename_prefix": ("STRING", {"default": "VideoCombine"}),
                 "format": (["image/gif", "image/webp"] + ffmpeg_formats,
                            {'formats': format_widgets}),
                 "pingpong": ("BOOLEAN", {"default": False}),
@@ -213,7 +213,7 @@ class VideoPreview:
         loop_count,
         images=None,
         latents=None,
-        filename_prefix="VideoPreview",
+        filename_prefix="VideoCombine",
         format="image/gif",
         pingpong=False,
         prompt=None,
@@ -239,7 +239,7 @@ class VideoPreview:
         # VHS 로드 확인
         if not _ensure_vhs() or _VideoCombine is None:
             raise RuntimeError(
-                "VideoPreview 노드는 VHS(Video Helper Suite)가 필요합니다.\n"
+                "VideoCombine 노드는 VHS(Video Helper Suite)가 필요합니다.\n"
                 "ComfyUI Manager에서 'ComfyUI-VideoHelperSuite'를 설치해 주세요."
             )
 
@@ -348,8 +348,8 @@ class VideoPreview:
 
 # ─── API 라우트 ───────────────────────────────────────────────────
 
-@PromptServer.instance.routes.post('/ghtools/video_preview_action')
-async def handle_video_preview_action(request):
+@PromptServer.instance.routes.post('/ghtools/video_combine_action')
+async def handle_video_combine_action(request):
     try:
         body = await request.json()
         node_id = str(body.get("node_id"))

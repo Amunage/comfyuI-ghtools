@@ -2,9 +2,9 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
 // 비디오 미리보기 액션 전송
-async function sendVideoPreviewAction(nodeId, action) {
+async function sendVideoCombineAction(nodeId, action) {
     try {
-        const response = await api.fetchApi("/ghtools/video_preview_action", {
+        const response = await api.fetchApi("/ghtools/video_combine_action", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -16,7 +16,7 @@ async function sendVideoPreviewAction(nodeId, action) {
         });
         return await response.json();
     } catch (error) {
-        console.error("Video preview action failed:", error);
+        console.error("Video combine action failed:", error);
         return { code: -1, error: error.message };
     }
 }
@@ -417,18 +417,18 @@ function addStableWidgetSerializationByName(nodeType) {
 }
 
 app.registerExtension({
-    name: 'ghtools.videoPreview',
+    name: 'ghtools.videoCombine',
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        const isVideoPreviewNode = nodeData.name === 'GHVideoPreview';
+        const isVideoCombineNode = nodeData.name === 'GHVideoCombine';
         const isGifToolNode = nodeData.name === 'GHGifDecomposer' || nodeData.name === 'GHGifAssembler';
 
-        if (isVideoPreviewNode || isGifToolNode) {
+        if (isVideoCombineNode || isGifToolNode) {
             // GIF/비디오 미리보기 위젯 추가
             addVideoPreview(nodeType);
         }
 
-        if (isVideoPreviewNode) {
+        if (isVideoCombineNode) {
             // Format widgets 동적 추가
             addFormatWidgets(nodeType, nodeData);
             
@@ -547,7 +547,7 @@ app.registerExtension({
                                     if (!node.isWaiting) return;
                                     const action = bounds?.data;
                                     if (!action) return;
-                                    const result = await sendVideoPreviewAction(node.id, action);
+                                    const result = await sendVideoCombineAction(node.id, action);
                                     if (result?.code === 1) {
                                         node.isWaiting = false;
                                         node.bgcolor = null;
@@ -696,7 +696,7 @@ app.registerExtension({
         api.addEventListener("ghtools-video-preview-waiting", (event) => {
             const { id, preview } = event.detail;
             const node = app.graph._nodes_by_id[id];
-            if (node && node.type === 'GHVideoPreview') {
+            if (node && node.type === 'GHVideoCombine') {
                 node.isWaiting = true;
                 node.previewInfo = preview;
                 node.updateButtons();
@@ -712,7 +712,7 @@ app.registerExtension({
         api.addEventListener("ghtools-video-preview-saved", (event) => {
             const { id, result } = event.detail;
             const node = app.graph._nodes_by_id[id];
-            if (node && node.type === 'GHVideoPreview') {
+            if (node && node.type === 'GHVideoCombine') {
                 node.isWaiting = false;
                 node.updateButtons();
             }
@@ -722,7 +722,7 @@ app.registerExtension({
         api.addEventListener("ghtools-video-preview-passed", (event) => {
             const { id } = event.detail;
             const node = app.graph._nodes_by_id[id];
-            if (node && node.type === 'GHVideoPreview') {
+            if (node && node.type === 'GHVideoCombine') {
                 node.isWaiting = false;
                 node.updateButtons();
             }
@@ -741,7 +741,7 @@ app.registerExtension({
         // 실행 시작 시 상태 초기화
         api.addEventListener("execution_start", () => {
             app.graph._nodes.forEach((node) => {
-                if (node.type === 'GHVideoPreview') {
+                if (node.type === 'GHVideoCombine') {
                     node.isWaiting = false;
                     if (node.updateButtons) node.updateButtons();
                 }
@@ -751,7 +751,7 @@ app.registerExtension({
         // 실행 완료/오류 시 상태 초기화
         api.addEventListener("execution_cached", () => {
             app.graph._nodes.forEach((node) => {
-                if (node.type === 'GHVideoPreview') {
+                if (node.type === 'GHVideoCombine') {
                     node.isWaiting = false;
                     if (node.updateButtons) node.updateButtons();
                 }
@@ -760,7 +760,7 @@ app.registerExtension({
         
         api.addEventListener("execution_error", () => {
             app.graph._nodes.forEach((node) => {
-                if (node.type === 'GHVideoPreview') {
+                if (node.type === 'GHVideoCombine') {
                     node.isWaiting = false;
                     if (node.updateButtons) node.updateButtons();
                 }
@@ -769,7 +769,7 @@ app.registerExtension({
 
         api.addEventListener("execution_interrupted", () => {
             app.graph._nodes.forEach((node) => {
-                if (node.type === 'GHVideoPreview') {
+                if (node.type === 'GHVideoCombine') {
                     node.isWaiting = false;
                     if (node.updateButtons) node.updateButtons();
                 }

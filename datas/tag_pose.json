@@ -55,10 +55,8 @@
     "손을 흔듬": "hand wave,",
     "고양이 손": "paw pose,",
     "허벅지에 손": "hand on thigh,",
-    "성기에 손": "hand on pussy,",
     "가슴을 쥠": "grabbing breast,",
-    "허벅지를 쥠": "grabbing thigh,",
-    "성기를 벌림": "spreading pussy,"
+    "허벅지를 쥠": "grabbing thigh,"
   },
   "pose_legs": {
     "다리를 벌림": "spread legs,",
