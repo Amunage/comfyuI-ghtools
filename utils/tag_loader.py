@@ -143,6 +143,7 @@ def build_tag_loader_description():
         "- Leave `sections` empty to use all top-level sections.",
         "- Example: age, grade",
         "- Then pick values from the dynamic dropdowns `tag_1`, `tag_2`, ...",
+        "- You can edit existing `datas/tag_*.json` files or add new ones in the `ComfyUI\custom_nodes\comfyuI-ghtools\datas` folder.",
         "",
         "Available top-level sections",
     ]
