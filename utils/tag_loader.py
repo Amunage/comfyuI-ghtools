@@ -1,22 +1,43 @@
 import json
 import os
 import random
+from glob import glob
 
 _cache = None
 
 
 def load_tags_json():
-    """Load and cache datas/tag_keywords.json."""
+    """Load and cache merged datas/tag_*.json files."""
     global _cache
     if _cache is None:
-        json_path = os.path.join(os.path.dirname(__file__), "..", "datas", "tag_keywords.json")
-        with open(json_path, "r", encoding="utf-8") as f:
-            _cache = json.load(f)
+        datas_dir = os.path.join(os.path.dirname(__file__), "..", "datas")
+        json_paths = sorted(glob(os.path.join(datas_dir, "tag_*.json")))
+        merged = {}
+
+        for json_path in json_paths:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                continue
+
+            for section_name, values in data.items():
+                if (
+                    isinstance(values, dict)
+                    and isinstance(merged.get(section_name), dict)
+                ):
+                    for key, value in values.items():
+                        if key not in merged[section_name]:
+                            merged[section_name][key] = value
+                else:
+                    if section_name not in merged:
+                        merged[section_name] = values
+
+        _cache = merged
     return _cache
 
 
 def get_all_tag_sections():
-    """Return all top-level sections from datas/tag_keywords.json."""
+    """Return merged top-level sections from datas/tag_*.json."""
     return load_tags_json()
 
 
@@ -114,7 +135,7 @@ def collect_loader_values(kwargs):
 
 def build_tag_loader_description():
     lines = [
-        "Select tags from any top-level section in tag_keywords.json.",
+        "Select tags from any top-level section in datas/tag_*.json.",
         "",
         "Usage",
         "- Enter comma-separated section names in `sections`.",
