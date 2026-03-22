@@ -1,3 +1,5 @@
+from .tag_loader import TagLoader
+
 from .text_switch import TextSwitch
 from .text_concatenate import TextConcatenate
 from .text_concatenate import TextConcatenateToggle
@@ -24,61 +26,53 @@ from .selection_input import AnySelection
 
 
 NODE_CLASS_MAPPINGS = {
-	"GHTextSwitch": TextSwitch,
-	"GHtextConcatenate": TextConcatenate,
-	"GHtextConcatenateToggle": TextConcatenateToggle,
-    
+	"GHTagLoader": TagLoader,
+    "GHTextSwitch": TextSwitch,
+    "GHtextConcatenate": TextConcatenate,
+    "GHtextConcatenateToggle": TextConcatenateToggle,
     "GHImageAutoloader": ImageAutoloader,
-	"GHImageComparer": ImageComparer,
-	"GHImageResolutionNode": ImageResolutionNode,
-	"GHImageMask": ImageMask,
-	"GHImageCrop": ImageCrop,
-    
-	"GHVideoPreview": VideoPreview,
-	"GHGifDecomposer": GifDecomposer,
-	"GHGifAssembler": GifAssembler,
-    
-	"GHAudioPreview": AudioPreview,
-	"GHAudioVocalRange": AudioVocalRange,
-    
-	"GHGenerateLLM": GenerateLLM,
-	"GHPromptBuffer": PromptBuffer,
-	"GHStepsCfgValue": StepsCfgValue,
-	"GHConvertValue": ConvertValue,
-	"GHForkSelection": ForkSelection,
-	"GHAnySelection": AnySelection,	
+    "GHImageComparer": ImageComparer,
+    "GHImageResolutionNode": ImageResolutionNode,
+    "GHImageMask": ImageMask,
+    "GHImageCrop": ImageCrop,
+    "GHVideoPreview": VideoPreview,
+    "GHGifDecomposer": GifDecomposer,
+    "GHGifAssembler": GifAssembler,
+    "GHAudioPreview": AudioPreview,
+    "GHAudioVocalRange": AudioVocalRange,
+    "GHGenerateLLM": GenerateLLM,
+    "GHPromptBuffer": PromptBuffer,
+    "GHStepsCfgValue": StepsCfgValue,
+    "GHConvertValue": ConvertValue,
+    "GHForkSelection": ForkSelection,
+    "GHAnySelection": AnySelection,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-
-
-	"GHTextSwitch": "🐴 Text Switch",
-	"GHtextConcatenate": "🐴 Text Concatenate",
-	"GHtextConcatenateToggle": "🐴 Text Concatenate (Toggle)",
+    "GHTagLoader": "🐴Tag Loader",
+    "GHTextSwitch": "🐴Text Switch",
+    "GHtextConcatenate": "🐴Text Concatenate",
+    "GHtextConcatenateToggle": "🐴Text Concatenate (Toggle)",
+    "GHImageAutoloader": "🐴Image Autoloader",
+    "GHImageComparer": "🐴Image Comparer",
+    "GHImageResolutionNode": "🐴Image Resolution",
+    "GHImageMask": "🐴Image Mask",
+    "GHImageCrop": "🐴Image Crop",
+    "GHVideoPreview": "🐴Video Preview",
+    "GHGifDecomposer": "🐴GIF Decomposer",
+    "GHGifAssembler": "🐴GIF Assembler",
+    "GHAudioPreview": "🐴Audio Preview",
+    "GHAudioVocalRange": "🐴Audio Vocal Range",
+    "GHGenerateLLM": "🐴Generate LLM",
+    "GHPromptBuffer": "🐴Prompt Buffer",
+    "GHStepsCfgValue": "🐴Steps CFG Value",
+    "GHConvertValue": "🐴Convert Value",
+    "GHForkSelection": "🐴Selection Output",
+    "GHAnySelection": "🐴Selection Input",
     
-    "GHImageAutoloader": "🐴 Image Autoloader",
-	"GHImageComparer": "🐴 Image Comparer",
-	"GHImageResolutionNode": "🐴 Image Resolution",
-	"GHImageMask": "🐴 Image Mask",
-	"GHImageCrop": "🐴 Image Crop",
-    
-	"GHVideoPreview": "🐴 Video Preview",
-	"GHGifDecomposer": "🐴 GIF Decomposer",
-	"GHGifAssembler": "🐴 GIF Assembler",
-    
-	"GHAudioPreview": "🐴 Audio Preview",
-	"GHAudioVocalRange": "🐴 Audio Vocal Range",
-    
-	"GHGenerateLLM": "🐴 Generate LLM",
-	"GHPromptBuffer": "🐴 Prompt Buffer",
-	"GHStepsCfgValue": "🐴 Steps CFG Value",
-	"GHConvertValue": "🐴 Convert Value",
-	"GHForkSelection": "🐴 Selection Output",
-	"GHAnySelection": "🐴 Selection Input",
-	
 }
 
 __all__ = [
-	"NODE_CLASS_MAPPINGS",
-	"NODE_DISPLAY_NAME_MAPPINGS",
+    "NODE_CLASS_MAPPINGS",
+    "NODE_DISPLAY_NAME_MAPPINGS",
 ]

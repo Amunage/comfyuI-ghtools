@@ -26,6 +26,13 @@ def _sorted_text_items(kwargs):
     return sorted(kwargs.items(), key=sort_key)
 
 
+def _normalize_piece(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 class TextConcatenate:
     """Lightweight text concatenation helper from Text Translation nodes."""
 
@@ -39,7 +46,7 @@ class TextConcatenate:
     CATEGORY = "🐴GHTools/Utils"
 
     def func(self, **kwargs):
-        text = ""
+        pieces = []
         for key, value in _sorted_text_items(kwargs):
             if not key.startswith("text"):
                 continue
@@ -47,11 +54,14 @@ class TextConcatenate:
                 continue
             if isinstance(value, (list, tuple)):
                 for sub in value:
-                    if sub is not None:
-                        text += str(sub)
+                    piece = _normalize_piece(sub)
+                    if piece is not None:
+                        pieces.append(piece)
             else:
-                text += str(value)
-        return (text,)
+                piece = _normalize_piece(value)
+                if piece is not None:
+                    pieces.append(piece)
+        return (" ".join(pieces),)
 
 
 class _DynamicToggleOptions(dict):
@@ -114,7 +124,12 @@ class TextConcatenateToggle:
             if not enabled or value is None:
                 continue
             if isinstance(value, (list, tuple)):
-                pieces.extend(str(sub) for sub in value if sub is not None)
+                for sub in value:
+                    piece = _normalize_piece(sub)
+                    if piece is not None:
+                        pieces.append(piece)
             else:
-                pieces.append(str(value))
-        return ("".join(pieces),)
+                piece = _normalize_piece(value)
+                if piece is not None:
+                    pieces.append(piece)
+        return (" ".join(pieces),)
