@@ -235,7 +235,13 @@ class TagLoader:
     def IS_CHANGED(cls, sections="", random_pick=False, preview="", text="", **kwargs):
         if random_pick:
             return float("nan")
-        return (sections, random_pick, preview, text, tuple(sorted(kwargs.items())))
+        selected_values = tuple(value for _, value in collect_loader_values(kwargs))
+        return (
+            str(sections or "").strip().lower(),
+            False,
+            selected_values,
+            str(text or "").strip(),
+        )
 
     def build_keywords(self, sections="", random_pick=False, preview="", text="", **kwargs):
         parts = []

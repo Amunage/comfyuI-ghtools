@@ -109,6 +109,7 @@ function addFormatWidgets(nodeType, nodeData) {
                     self.widgets.splice(idx, 1);
                 }
             }
+            const removedWidgets = currentWidgets;
             currentWidgets = [];
             
             // 새 format widgets 추가
@@ -133,7 +134,7 @@ function addFormatWidgets(nodeType, nodeData) {
                     let widget;
                     if (type === "BOOLEAN") {
                         const defaultVal = savedValue !== undefined ? savedValue : (opts.default ?? false);
-                        widget = self.addWidget("toggle", name, defaultVal, function(v) {}, { serialize: false });
+                        widget = self.addWidget("toggle", name, defaultVal, function(v) {}, { serialize: true });
                     } else if (type === "INT") {
                         const defaultVal = savedValue !== undefined ? savedValue : (opts.default ?? 0);
                         widget = self.addWidget("number", name, defaultVal, function(v) {}, {
@@ -141,7 +142,7 @@ function addFormatWidgets(nodeType, nodeData) {
                             max: opts.max ?? 100,
                             step: opts.step ?? 1,
                             precision: 0,
-                            serialize: false
+                            serialize: true
                         });
                     } else if (type === "FLOAT") {
                         const defaultVal = savedValue !== undefined ? savedValue : (opts.default ?? 0);
@@ -150,18 +151,19 @@ function addFormatWidgets(nodeType, nodeData) {
                             max: opts.max ?? 100,
                             step: opts.step ?? 0.1,
                             precision: 2,
-                            serialize: false
+                            serialize: true
                         });
                     } else if (type === "STRING") {
                         const defaultVal = savedValue !== undefined ? savedValue : (opts.default ?? "");
-                        widget = self.addWidget("text", name, defaultVal, function(v) {}, { serialize: false });
+                        widget = self.addWidget("text", name, defaultVal, function(v) {}, { serialize: true });
                     } else if (Array.isArray(type)) {
                         // Combo/dropdown
                         const defaultVal = savedValue !== undefined ? savedValue : (opts.default ?? type[0]);
-                        widget = self.addWidget("combo", name, defaultVal, function(v) {}, { values: type, serialize: false });
+                        widget = self.addWidget("combo", name, defaultVal, function(v) {}, { values: type, serialize: true });
                     }
                     
                     if (widget) {
+                        widget.config = wDef.slice(1);
                         currentWidgets.push(widget);
                         // 위치 조정: format widget 바로 다음에 배치
                         const curIdx = self.widgets.indexOf(widget);
@@ -169,7 +171,25 @@ function addFormatWidgets(nodeType, nodeData) {
                             self.widgets.splice(curIdx, 1);
                             self.widgets.splice(formatIdx + 1 + i, 0, widget);
                         }
+
+                        const existingInput = self.inputs?.find((input) => input.name === name);
+                        const inputType = widget.config?.[0] ?? type;
+                        if (existingInput) {
+                            existingInput.type = inputType;
+                            existingInput.widget = { name };
+                        } else {
+                            self.addInput(name, inputType, { widget: { name } });
+                        }
                     }
+                }
+            }
+
+            const newNames = new Set(currentWidgets.map((w) => w.name));
+            for (const w of removedWidgets) {
+                if (newNames.has(w.name)) continue;
+                const inputIdx = self.inputs?.findIndex((input) => input.name === w.name) ?? -1;
+                if (inputIdx >= 0) {
+                    self.removeInput(inputIdx);
                 }
             }
             fitHeight(self);
