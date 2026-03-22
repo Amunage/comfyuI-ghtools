@@ -242,6 +242,40 @@ function getSerializableWidgets(node) {
     return (node.widgets || []).filter((w) => !(w.options && w.options.serialize === false) && w.name !== "Reset");
 }
 
+function getSerializableWidgetValuesByName(node) {
+    const byName = {};
+    for (const widget of getSerializableWidgets(node)) {
+        if (widget.name) {
+            byName[widget.name] = widget.value;
+        }
+    }
+    return byName;
+}
+
+function trimDynamicTagWidgetValues(node, info) {
+    if (!Array.isArray(info?.widgets_values) || !Array.isArray(info?._tagWidgets)) return;
+    const extraCount = Math.max(0, info._tagWidgets.length - 1);
+    if (!extraCount) return;
+
+    const baseName = `${node._tagWidgetBaseGroup || "tag"}_1`;
+    const tag1Idx = (node.widgets || []).findIndex((w) => w.name === baseName);
+    if (tag1Idx < 0) return;
+
+    const fixed = [...info.widgets_values];
+    fixed.splice(tag1Idx + 1, extraCount);
+    info.widgets_values = fixed;
+}
+
+function restoreWidgetValuesByName(node, info) {
+    const byName = info?.ghtools_widget_values_by_name;
+    if (!byName || typeof byName !== "object") return;
+
+    for (const widget of getSerializableWidgets(node)) {
+        if (!widget.name || !(widget.name in byName)) continue;
+        widget.value = byName[widget.name];
+    }
+}
+
 function ensurePreviewWidget(node) {
     const existingPreview = getWidgetByName(node, "preview");
     if (existingPreview) {
@@ -314,6 +348,7 @@ app.registerExtension({
         nodeType.prototype.onSerialize = function (o) {
             if (origSerialize) origSerialize.apply(this, arguments);
             o.widgets_values = getSerializableWidgets(this).map((w) => w.value);
+            o.ghtools_widget_values_by_name = getSerializableWidgetValuesByName(this);
             o._tagWidgets = getTagWidgets(this, group).map((w) => w.value);
         };
         const origConfigure = nodeType.prototype.configure;
@@ -346,10 +381,13 @@ app.registerExtension({
                 moveWidgetBefore(this, resetBtn, `${this._tagWidgetBaseGroup}_1`);
             }
             ensurePreviewWidget(this);
+            trimDynamicTagWidgetValues(this, info);
             if (origConfigure) origConfigure.apply(this, arguments);
             initTagCallbacks(this, group);
             initSectionCallbacks(this, group);
             if (this._tagSectionValues) updateTagStateFromSections(this, group);
+            restoreWidgetValuesByName(this, info);
+            reconcileTagWidgets(this, group);
             updatePreviewWidget(this, group);
         };
     },
