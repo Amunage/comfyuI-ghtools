@@ -71,7 +71,8 @@
     "두다리를 위로 올림": "legs up,",
     "한쪽 다리만 올림": "one leg up,",
     "다리를 넓게 벌림": "wide stance,",
-    "발목을 교차": "crossed ankles,"
+    "발목을 교차": "crossed ankles,",
+    "M자 다리": "m legs,"
   },
   "pose_handupper": {
     "안경 위치를 고쳐잡음": "adjusting eyewear,",
