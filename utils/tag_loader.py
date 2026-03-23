@@ -1,9 +1,38 @@
 import json
 import os
 import random
+import re
 from glob import glob
 
 _cache = None
+
+
+def _split_keyword_text(text):
+    parts = []
+    for chunk in re.split(r"[\n,]+", str(text or "")):
+        value = chunk.strip()
+        if value:
+            parts.append(value)
+    return parts
+
+
+def _normalize_keyword(value):
+    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
+
+
+def _merge_keyword_texts(*texts):
+    merged = []
+    seen = set()
+
+    for text in texts:
+        for value in _split_keyword_text(text):
+            normalized = _normalize_keyword(value)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            merged.append(value)
+
+    return f"{', '.join(merged)}," if merged else ""
 
 
 def load_tags_json():
@@ -244,7 +273,7 @@ class TagLoader:
         )
 
     def build_keywords(self, sections="", random_pick=False, preview="", text="", **kwargs):
-        parts = []
+        selected_parts = []
         all_sections = get_all_tag_sections()
         option_map = getattr(self, "_option_map", {})
 
@@ -256,24 +285,16 @@ class TagLoader:
                 selected_value = random.choice(list(section.keys()))
                 tag = section.get(selected_value)
                 if tag:
-                    parts.append(tag)
+                    selected_parts.append(tag)
         else:
-            preview_text = (preview or "").strip()
-            if preview_text:
-                parts.append(preview_text)
-            else:
-                for _, selected_value in collect_loader_values(kwargs):
-                    section_name = option_map.get(selected_value)
-                    if not section_name:
-                        continue
-                    section = all_sections.get(section_name, {})
-                    tag = section.get(selected_value)
-                    if tag:
-                        parts.append(tag)
+            for _, selected_value in collect_loader_values(kwargs):
+                section_name = option_map.get(selected_value)
+                if not section_name:
+                    continue
+                section = all_sections.get(section_name, {})
+                tag = section.get(selected_value)
+                if tag:
+                    selected_parts.append(tag)
 
-        manual = (text or "").strip()
-        if manual:
-            parts.append(manual)
-
-        combined = " ".join(p.strip() for p in parts) if parts else ""
-        return (combined,)
+        combined = _merge_keyword_texts(", ".join(selected_parts), text)
+        return {"ui": {"text": [combined]}, "result": (combined,)}

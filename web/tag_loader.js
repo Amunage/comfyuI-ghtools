@@ -252,6 +252,115 @@ function getSerializableWidgetValuesByName(node) {
     return byName;
 }
 
+function splitKeywordText(text) {
+    return String(text || "")
+        .split(/[\n,]+/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+}
+
+function normalizeKeyword(value) {
+    return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function mergeKeywordTexts(prefixTexts, manualText = "") {
+    const merged = [];
+    const seen = new Set();
+    const texts = Array.isArray(prefixTexts) ? prefixTexts : [prefixTexts];
+
+    for (const text of [...texts, manualText]) {
+        for (const part of splitKeywordText(text)) {
+            const normalized = normalizeKeyword(part);
+            if (!normalized || seen.has(normalized)) continue;
+            seen.add(normalized);
+            merged.push(part);
+        }
+    }
+
+    return merged.length ? `${merged.join(", ")},` : "";
+}
+
+function removeKeywordsFromText(text, keywords) {
+    const blocked = new Set(
+        splitKeywordText(keywords).map((part) => normalizeKeyword(part)).filter(Boolean)
+    );
+    if (!blocked.size) return String(text || "").trim();
+
+    const remaining = splitKeywordText(text).filter((part) => !blocked.has(normalizeKeyword(part)));
+    return remaining.length ? `${remaining.join(", ")},` : "";
+}
+
+function getAutoAppliedText(appliedText, manualText) {
+    return removeKeywordsFromText(appliedText, manualText);
+}
+
+function hidePreviewWidget(widget) {
+    if (!widget) return;
+    widget.type = "hidden";
+    widget.computeSize = () => [0, -4];
+}
+
+function getSelectedPreviewText(node, group) {
+    const randomPick = !!getWidgetByName(node, "random_pick")?.value;
+    if (randomPick) {
+        return "random";
+    }
+
+    const activeValues = getTagWidgets(node, group)
+        .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value))
+        .map((w) => w.value);
+
+    const sectionTags = node._tagSectionTags || {};
+    const valueToParent = node._valueToParent || {};
+    const previewParts = activeValues
+        .map((value) => {
+            const sectionName = valueToParent[value];
+            return sectionTags?.[sectionName]?.[value] || "";
+        })
+        .filter(Boolean);
+
+    return mergeKeywordTexts(previewParts);
+}
+
+function getManualBaseText(node, textWidget) {
+    const currentText = String(textWidget?.value || "").trim();
+    const lastAppliedText = String(node._tagLoaderLastAppliedText || "").trim();
+    const lastManualText = String(node._tagLoaderLastManualText || "").trim();
+    if (currentText === lastAppliedText) {
+        return lastManualText;
+    }
+    if (lastAppliedText) {
+        const lastAutoText = getAutoAppliedText(lastAppliedText, lastManualText);
+        return removeKeywordsFromText(currentText, lastAutoText);
+    }
+    const selectedText = getSelectedPreviewText(node, node._tagGroup);
+    if (selectedText && selectedText !== "random") {
+        return removeKeywordsFromText(currentText, selectedText);
+    }
+    return currentText;
+}
+
+function rememberAppliedText(node, appliedText, manualBaseText) {
+    node._tagLoaderLastAppliedText = String(appliedText || "").trim();
+    node._tagLoaderLastManualText = String(manualBaseText || "").trim();
+}
+
+function syncTextWidget(node, group, previewText = null) {
+    const textWidget = getWidgetByName(node, "text");
+    if (!textWidget) return "";
+
+    const manualBaseText = getManualBaseText(node, textWidget);
+    const selectedText = previewText ?? getSelectedPreviewText(node, group);
+    const mergedText = selectedText === "random"
+        ? manualBaseText
+        : mergeKeywordTexts(selectedText ? [selectedText] : [], manualBaseText);
+
+    textWidget.value = mergedText;
+    rememberAppliedText(node, mergedText, manualBaseText);
+    app.graph.setDirtyCanvas(true);
+    return mergedText;
+}
+
 function trimDynamicTagWidgetValues(node, info) {
     if (!Array.isArray(info?.widgets_values) || !Array.isArray(info?._tagWidgets)) return;
     const extraCount = Math.max(0, info._tagWidgets.length - 1);
@@ -279,6 +388,7 @@ function restoreWidgetValuesByName(node, info) {
 function ensurePreviewWidget(node) {
     const existingPreview = getWidgetByName(node, "preview");
     if (existingPreview) {
+        hidePreviewWidget(existingPreview);
         moveWidgetBefore(node, existingPreview, "text");
         return;
     }
@@ -286,32 +396,11 @@ function ensurePreviewWidget(node) {
 
 function updatePreviewWidget(node, group) {
     const previewWidget = getWidgetByName(node, "preview");
-    if (!previewWidget) return;
-
-    const randomPick = !!getWidgetByName(node, "random_pick")?.value;
-    let previewText = "";
-
-    if (randomPick) {
-        previewText = "random";
-    } else {
-        const activeValues = getTagWidgets(node, group)
-            .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value))
-            .map((w) => w.value);
-
-        const sectionTags = node._tagSectionTags || {};
-        const valueToParent = node._valueToParent || {};
-        const previewParts = activeValues
-            .map((value) => {
-                const sectionName = valueToParent[value];
-                return sectionTags?.[sectionName]?.[value] || "";
-            })
-            .filter(Boolean);
-
-        previewText = previewParts.join(" ");
-    }
-
+    const previewText = getSelectedPreviewText(node, group);
+    if (!previewWidget) return previewText;
     previewWidget.value = previewText;
     app.graph.setDirtyCanvas(true);
+    return previewText;
 }
 
 app.registerExtension({
@@ -346,6 +435,8 @@ app.registerExtension({
         };
         const origSerialize = nodeType.prototype.onSerialize;
         nodeType.prototype.onSerialize = function (o) {
+            const previewText = updatePreviewWidget(this, group);
+            syncTextWidget(this, group, previewText);
             if (origSerialize) origSerialize.apply(this, arguments);
             o.widgets_values = getSerializableWidgets(this).map((w) => w.value);
             o.ghtools_widget_values_by_name = getSerializableWidgetValuesByName(this);
@@ -389,6 +480,18 @@ app.registerExtension({
             restoreWidgetValuesByName(this, info);
             reconcileTagWidgets(this, group);
             updatePreviewWidget(this, group);
+        };
+        const origExecuted = nodeType.prototype.onExecuted;
+        nodeType.prototype.onExecuted = function (output) {
+            if (origExecuted) origExecuted.apply(this, arguments);
+            const executedText = Array.isArray(output?.text) ? output.text[0] : "";
+            if (!executedText) return;
+            const textWidget = getWidgetByName(this, "text");
+            if (!textWidget) return;
+            const manualBaseText = getManualBaseText(this, textWidget);
+            textWidget.value = executedText;
+            rememberAppliedText(this, executedText, manualBaseText);
+            this.setDirtyCanvas?.(true, true);
         };
     },
 });
@@ -434,7 +537,8 @@ function initTagCallbacks(node, group) {
                 w.value = "none";
             }
             reconcileTagWidgets(node, group);
-            updatePreviewWidget(node, group);
+            const previewText = updatePreviewWidget(node, group);
+            syncTextWidget(node, group, previewText);
         };
     }
 }
@@ -442,11 +546,18 @@ function initTagCallbacks(node, group) {
 function initSectionCallbacks(node, group) {
     const sectionsWidget = node.widgets?.find((w) => w.name === "sections");
     if (!sectionsWidget || !node._tagSectionValues) return;
-    sectionsWidget.callback = () => updateTagStateFromSections(node, group);
+    sectionsWidget.callback = () => {
+        updateTagStateFromSections(node, group);
+        const previewText = updatePreviewWidget(node, group);
+        syncTextWidget(node, group, previewText);
+    };
 
     const randomPickWidget = node.widgets?.find((w) => w.name === "random_pick");
     if (randomPickWidget) {
-        randomPickWidget.callback = () => updatePreviewWidget(node, group);
+        randomPickWidget.callback = () => {
+            const previewText = updatePreviewWidget(node, group);
+            syncTextWidget(node, group, previewText);
+        };
     }
 }
 
@@ -496,5 +607,9 @@ function resetTagWidgets(node) {
         if (w.name !== "Reset") w.value = "none";
     });
     const group = node._tagGroup || inferTagGroup(node) || Object.values(node._valueToParent || {})[0] || null;
-    if (group) reconcileTagWidgets(node, group);
+    if (group) {
+        reconcileTagWidgets(node, group);
+        const previewText = updatePreviewWidget(node, group);
+        syncTextWidget(node, group, previewText);
+    }
 }
