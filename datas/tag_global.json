@@ -3,7 +3,7 @@
     "일반등급": "general,",
     "청소년등급": "sensitive,",
     "성인등급": "nsfw,",
-    "노인등급": "explicit,"
+    "검열해제": "explicit,"
   },
   "camera_focus": {
     "정면에서 본 모습": "straight-on,",
@@ -29,7 +29,10 @@
     "지평선이 틀어진 각도": "dutch angle,",
     "가까이서 크게 보임": "foreshortening,",
     "깊이감 추가": "perspective,",
-    "렌즈 왜곡": "fisheye,"
+    "렌즈 왜곡": "fisheye,",
+    "이미지 크롭": "cropped,",
+    "프레임 아웃": "out of frame,",
+    "클로즈 업": "close-up,"
   },
   "humans_woman": {
     "1girl": "1girl,",

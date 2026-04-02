@@ -70,16 +70,19 @@
     "주방": "kitchen,",
     "침실": "bedroom,",
     "침대": "on bed,",
+    "저택": "mansion,",
     "교실": "classroom,",
     "도서관": "library,",
     "카페": "cafe,",
     "레스토랑": "restaurant,",
     "사무실": "office,",
     "바": "bar,",
+    "체육관": "gym,",
     "교회": "church,",
     "신사": "shrine,",
     "학교": "school,",
     "복도": "hallway,",
+    "버스 내부": "bus interior,",
     "기차 내부": "train interior,"
   },
   "background_outdoor": {
@@ -94,13 +97,15 @@
     "수영장": "pool,",
     "수영장 옆": "poolside,",
     "숲": "forest,",
-    "대나무 숲": "bamboo_forest,",
+    "대나무 숲": "bamboo forest,",
     "산": "mountain,",
     "호수": "lake,",
     "강": "river,",
     "사막": "desert,",
     "동굴": "cave,",
-    "공원 벤치": "park bench,"
+    "공원 벤치": "park bench,",
+    "정류장": "bus stop,",
+    "승강장": "train station platform,"
   },
   "background_other": {
     "단순한 배경": "simple background,",
