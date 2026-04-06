@@ -455,10 +455,11 @@ app.registerExtension({
             const previewText = updatePreviewWidget(this, group);
             syncTextWidget(this, group, previewText);
             if (origSerialize) origSerialize.apply(this, arguments);
+            const serializedTagWidgets = getPreferredTagWidgets(this, group);
             o.widgets_values = getSerializableWidgets(this).map((w) => w.value);
             o.ghtools_widget_values_by_name = getSerializableWidgetValuesByName(this);
-            o._tagWidgets = getTagWidgets(this, group).map((w) => w.value);
-            o._tagWeights = getTagWidgets(this, group).map((w) => w._tagWeight ?? 1.0);
+            o._tagWidgets = serializedTagWidgets.map((w) => w.value);
+            o._tagWeights = serializedTagWidgets.map((w) => w._tagWeight ?? 1.0);
         };
         const origConfigure = nodeType.prototype.configure;
         nodeType.prototype.configure = function (info) {
@@ -468,6 +469,12 @@ app.registerExtension({
             this._tagSectionTags = nodeData.input?._section_tags || null;
             this._tagOptions = options;
             this._valueToParent = valueToParent;
+            this._pendingSerializedTagEntries = Array.isArray(info?._tagWidgets)
+                ? info._tagWidgets.map((value, index) => ({
+                    value,
+                    weight: Array.isArray(info?._tagWeights) ? info._tagWeights[index] ?? 1.0 : 1.0,
+                }))
+                : null;
             trimDynamicTagWidgetValues(this, info);
             if (origConfigure) origConfigure.apply(this, arguments);
             if (!this.widgets?.find((w) => w.name === "Reset")) {
@@ -869,16 +876,27 @@ function reconcileTagWidgets(node, group) {
     const valueToParent = node._valueToParent || {};
     const baseGroup = getWidgetBaseGroup(group);
     if (!options) return;
-    const activeEntries = getPreferredTagWidgets(node, group)
-        .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value) && options.includes(w.value))
-        .map((w) => {
-            const idx = getWidgetIndex(w);
-            const weightWidget = idx ? getWidgetByName(node, `weight_${idx}`) : null;
-            return {
-                value: w.value,
-                weight: weightWidget?.value ?? (w._tagWeight ?? 1.0),
-            };
-        });
+    let activeEntries;
+    if (Array.isArray(node._pendingSerializedTagEntries)) {
+        activeEntries = node._pendingSerializedTagEntries
+            .filter((entry) => entry?.value !== "none" && !isTagSeparatorValue(entry?.value) && options.includes(entry?.value))
+            .map((entry) => ({
+                value: entry.value,
+                weight: Number.isFinite(Number(entry.weight)) ? Number(entry.weight) : 1.0,
+            }));
+        node._pendingSerializedTagEntries = null;
+    } else {
+        activeEntries = getPreferredTagWidgets(node, group)
+            .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value) && options.includes(w.value))
+            .map((w) => {
+                const idx = getWidgetIndex(w);
+                const weightWidget = idx ? getWidgetByName(node, `weight_${idx}`) : null;
+                return {
+                    value: w.value,
+                    weight: weightWidget?.value ?? (w._tagWeight ?? 1.0),
+                };
+            });
+    }
     const desiredCount = activeEntries.length + 1;
     const prefixes = getTagPrefixes(node, group);
     node.widgets = node.widgets.filter((w) => (!isTagWidget(w, prefixes) || w.name === "Reset") && !isWeightWidget(w));
