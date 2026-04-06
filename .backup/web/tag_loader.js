@@ -296,19 +296,8 @@ function getAutoAppliedText(appliedText, manualText) {
 
 function hidePreviewWidget(widget) {
     if (!widget) return;
-    widget.hidden = true;
-    widget.origType = widget.origType || widget.type;
-    widget.type = "custom";
-    widget.serializeValue = () => widget.value;
-    widget.draw = () => {};
-    widget.mouse = () => false;
+    widget.type = "hidden";
     widget.computeSize = () => [0, -4];
-}
-
-function hideGeneratedWeightWidgets(node) {
-    for (const widget of getWeightWidgets(node)) {
-        hidePreviewWidget(widget);
-    }
 }
 
 function getSelectedPreviewText(node, group) {
@@ -317,10 +306,12 @@ function getSelectedPreviewText(node, group) {
         return "random";
     }
 
+    const activeWidgets = getTagWidgets(node, group)
+        .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value));
+
     const sectionTags = node._tagSectionTags || {};
     const valueToParent = node._valueToParent || {};
-    const previewParts = getTagWidgets(node, group)
-        .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value))
+    const previewParts = activeWidgets
         .map((w) => {
             const sectionName = valueToParent[w.value];
             const tag = sectionTags?.[sectionName]?.[w.value] || "";
@@ -374,7 +365,7 @@ function syncTextWidget(node, group, previewText = null) {
 function trimDynamicTagWidgetValues(node, info) {
     if (!Array.isArray(info?.widgets_values) || !Array.isArray(info?._tagWidgets)) return;
     const extraTagCount = Math.max(0, info._tagWidgets.length - 1);
-    const activeTagCount = (info._tagWidgets || []).filter((value) => value !== "none" && !isTagSeparatorValue(value)).length;
+    const activeTagCount = (info._tagWidgets || []).filter(v => v !== "none" && !isTagSeparatorValue(v)).length;
     const extraCount = extraTagCount + activeTagCount;
     if (!extraCount) return;
 
@@ -438,14 +429,9 @@ app.registerExtension({
                 moveWidgetBefore(this, resetBtn, `${this._tagWidgetBaseGroup}_1`);
             }
             ensurePreviewWidget(this);
-            hideGeneratedWeightWidgets(this);
-            if (this._tagSectionValues) {
-                updateTagStateFromSections(this, group);
-            } else {
-                reconcileTagWidgets(this, group);
-            }
             initTagCallbacks(this, group);
             initSectionCallbacks(this, group);
+            if (this._tagSectionValues) updateTagStateFromSections(this, group);
             updatePreviewWidget(this, group);
             addHelpBadge(this, helpDescription);
             return result;
@@ -468,23 +454,43 @@ app.registerExtension({
             this._tagSectionTags = nodeData.input?._section_tags || null;
             this._tagOptions = options;
             this._valueToParent = valueToParent;
-            trimDynamicTagWidgetValues(this, info);
-            if (origConfigure) origConfigure.apply(this, arguments);
+            if (info?._tagWidgets && info._tagWidgets.length > 1) {
+                const weights = info._tagWeights || [];
+                for (let i = 1; i < info._tagWidgets.length; i++) {
+                    const value = info._tagWidgets[i];
+                    const parent = group === "all" ? this._tagWidgetBaseGroup : (valueToParent[value] || group);
+                    const name = `${parent}_${i + 1}`;
+                    if (this.widgets?.find((w) => w.name === name)) continue;
+                    const w = this.addWidget(
+                        "combo",
+                        name,
+                        value,
+                        () => reconcileTagWidgets(this, group),
+                        { values: options, serialize: true }
+                    );
+                    w.options = { ...(w.options || {}), values: options, serialize: true };
+                    w._tagWeight = weights[i] ?? 1.0;
+                    moveWidgetBefore(this, w, "text");
+                }
+            }
+            if (info?._tagWidgets?.length > 0 && info._tagWidgets[0] !== "none" && !isTagSeparatorValue(info._tagWidgets[0])) {
+                const weights = info._tagWeights || [];
+                const tag1Name = `${this._tagWidgetBaseGroup || "tag"}_1`;
+                const tag1Widget = getWidgetByName(this, tag1Name);
+                if (tag1Widget) tag1Widget._tagWeight = weights[0] ?? 1.0;
+            }
             if (!this.widgets?.find((w) => w.name === "Reset")) {
                 const resetBtn = this.addWidget("button", "Reset", "Reset", () => resetTagWidgets(this));
                 moveWidgetBefore(this, resetBtn, `${this._tagWidgetBaseGroup}_1`);
             }
             ensurePreviewWidget(this);
-            hideGeneratedWeightWidgets(this);
-            restoreWidgetValuesByName(this, info);
-            syncInlineTagWeights(this, group);
-            if (this._tagSectionValues) {
-                updateTagStateFromSections(this, group);
-            } else {
-                reconcileTagWidgets(this, group);
-            }
+            trimDynamicTagWidgetValues(this, info);
+            if (origConfigure) origConfigure.apply(this, arguments);
             initTagCallbacks(this, group);
             initSectionCallbacks(this, group);
+            if (this._tagSectionValues) updateTagStateFromSections(this, group);
+            restoreWidgetValuesByName(this, info);
+            reconcileTagWidgets(this, group);
             updatePreviewWidget(this, group);
         };
         const origExecuted = nodeType.prototype.onExecuted;
@@ -522,10 +528,6 @@ function isTagWidget(widget, prefixes) {
     return !!widget?.name && prefixes.some((prefix) => widget.name.startsWith(`${prefix}_`));
 }
 
-function isManagedInlineTagWidget(widget) {
-    return widget?._isTagInlineWidget === true;
-}
-
 function isTagSeparatorValue(value) {
     return typeof value === "string" && value.startsWith("-----") && value.endsWith("-----");
 }
@@ -538,34 +540,13 @@ function getWeightWidgets(node) {
     return (node.widgets || []).filter(isWeightWidget);
 }
 
-function getWidgetIndex(widget) {
-    const match = widget?.name?.match(/_(\d+)$/);
-    return match ? Number(match[1]) : 0;
-}
-
 function applyWeightToTag(tagText, weight) {
-    const rounded = Math.round(Number(weight ?? 1.0) * 100) / 100;
+    const rounded = Math.round(weight * 100) / 100;
     if (rounded === 1.0) return tagText;
-    const weightText = parseFloat(rounded.toFixed(2)).toString();
-    const parts = String(tagText || "")
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
+    const wStr = parseFloat(rounded.toFixed(2)).toString();
+    const parts = String(tagText || "").split(",").map(s => s.trim()).filter(Boolean);
     if (!parts.length) return tagText;
-    return `${parts.map((part) => `(${part}:${weightText})`).join(", ")},`;
-}
-
-function syncInlineTagWeights(node, group) {
-    for (const widget of getPreferredTagWidgets(node, group)) {
-        const idx = getWidgetIndex(widget);
-        const weightWidget = idx ? getWidgetByName(node, `weight_${idx}`) : null;
-        if (!weightWidget) {
-            widget._tagWeight = widget._tagWeight ?? 1.0;
-            continue;
-        }
-        const parsed = Number(weightWidget.value);
-        widget._tagWeight = Number.isFinite(parsed) ? parsed : 1.0;
-    }
+    return parts.map(p => `(${p}:${wStr})`).join(", ") + ",";
 }
 
 const TAG_WEIGHT_AREA_WIDTH = 68;
@@ -573,248 +554,122 @@ const TAG_WEIGHT_STEP = 0.05;
 const TAG_WEIGHT_MIN = 0.0;
 const TAG_WEIGHT_MAX = 3.0;
 
-function getInlineWeightGeometry(widget, node, widgetWidth, posY, height) {
-    const randomPick = !!getWidgetByName(node, "random_pick")?.value;
-    const isActive = widget.value !== "none" && !isTagSeparatorValue(widget.value) && !randomPick;
+function drawComboWeightWidget(ctx, node, widget_width, y, H) {
+    const w = this;
+    const isActive = w.value !== "none" && !isTagSeparatorValue(w.value);
     const margin = 15;
-    const width = widgetWidth ?? node.size[0];
-    const widgetHeight = height ?? LiteGraph.NODE_WIDGET_HEIGHT;
-    const y = posY ?? widget.last_y ?? 0;
-    const weightWidth = isActive ? TAG_WEIGHT_AREA_WIDTH : 0;
-    const comboWidth = width - weightWidth;
-    return {
-        isActive,
-        margin,
-        width,
-        height: widgetHeight,
-        y,
-        weightWidth,
-        comboWidth,
-    };
-}
+    const WEIGHT_W = isActive ? TAG_WEIGHT_AREA_WIDTH : 0;
+    const comboW = widget_width - WEIGHT_W;
+    const rr = H * 0.25;
 
-function updateInlineTagWeight(widget, nextWeight) {
-    const clamped = Math.max(TAG_WEIGHT_MIN, Math.min(TAG_WEIGHT_MAX, Math.round(Number(nextWeight) * 100) / 100));
-    widget._tagWeight = clamped;
-    widget._syncWeight?.(clamped);
-}
+    // Clear default combo rendering
+    ctx.fillStyle = node.bgcolor || LiteGraph.NODE_DEFAULT_BGCOLOR || "#353535";
+    ctx.fillRect(0, y, widget_width, H);
 
-class TagInlineComboWidget {
-    constructor(name, value, weight, values, onChange) {
-        this.name = name;
-        this.type = "custom";
-        this._isTagInlineWidget = true;
-        this.options = { serialize: true, values };
-        this.value = value;
-        this._tagWeight = Number(weight ?? 1.0);
-        this._onChange = onChange;
-        this.last_y = 0;
-        this.mouseDowned = null;
-        this.isMouseDownedAndOver = false;
-        this.downedHitAreasForClick = [];
-        this.hitAreas = {
-            combo: { bounds: [0, 0, 0, 0], onClick: this.onComboClick },
-            weightDec: { bounds: [0, -1, 0, 0], onClick: this.onWeightDecClick },
-            weightVal: { bounds: [0, -1, 0, 0], onClick: this.onWeightValueClick },
-            weightInc: { bounds: [0, -1, 0, 0], onClick: this.onWeightIncClick },
-        };
-    }
+    // Combo background
+    ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR || "#232323";
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(margin, y, comboW - margin * 2, H, rr) : ctx.rect(margin, y, comboW - margin * 2, H);
+    ctx.fill();
 
-    serializeValue() {
-        return this.value;
-    }
+    // Combo text
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(margin + 16, y, comboW - margin * 2 - 32, H);
+    ctx.clip();
+    ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR || "#DDD";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = `${Math.round(H * 0.65)}px Arial`;
+    ctx.fillText(w.value || "none", margin + 18, y + H * 0.5);
+    ctx.restore();
 
-    computeSize(width) {
-        return [width, LiteGraph.NODE_WIDGET_HEIGHT];
-    }
+    // Combo arrows
+    ctx.fillStyle = LiteGraph.WIDGET_SECONDARY_TEXT_COLOR || "#999";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `${Math.round(H * 0.5)}px Arial`;
+    ctx.fillText("\u25C0", margin + 8, y + H * 0.5);
+    ctx.fillText("\u25B6", comboW - margin - 8, y + H * 0.5);
 
-    clickWasWithinBounds(pos, bounds) {
-        return pos[0] >= bounds[0] && pos[0] <= bounds[0] + bounds[2] && pos[1] >= bounds[1] && pos[1] <= bounds[1] + bounds[3];
-    }
-
-    cancelMouseDown() {
-        this.mouseDowned = null;
-        this.isMouseDownedAndOver = false;
-        this.downedHitAreasForClick.length = 0;
-        Object.values(this.hitAreas).forEach((part) => {
-            part.wasMouseClickedAndIsOver = false;
-        });
-    }
-
-    triggerChange(node) {
-        this._onChange?.(this, node);
-    }
-
-    draw(ctx, node, widgetWidth, y, height) {
-        this.last_y = y;
-        const { isActive, margin, comboWidth, weightWidth } = getInlineWeightGeometry(this, node, widgetWidth, y, height);
-        const radius = height * 0.25;
-        const outerWidth = widgetWidth - margin * 2;
-
-        this.hitAreas.combo.bounds = [margin, y, comboWidth - margin * 2, height];
-        this.hitAreas.weightDec.bounds = [0, -1, 0, 0];
-        this.hitAreas.weightVal.bounds = [0, -1, 0, 0];
-        this.hitAreas.weightInc.bounds = [0, -1, 0, 0];
-
-        ctx.fillStyle = node.bgcolor || LiteGraph.NODE_DEFAULT_BGCOLOR || "#353535";
-        ctx.fillRect(0, y, widgetWidth, height);
+    // Weight area
+    if (isActive) {
+        const weightX = comboW;
+        const weightInnerW = WEIGHT_W - margin;
+        const weight = w._tagWeight ?? 1.0;
 
         ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR || "#232323";
         ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(margin, y, outerWidth, height, radius);
-        } else {
-            ctx.rect(margin, y, outerWidth, height);
-        }
+        ctx.roundRect ? ctx.roundRect(weightX, y, weightInnerW, H, rr) : ctx.rect(weightX, y, weightInnerW, H);
         ctx.fill();
 
-        ctx.save();
-        ctx.beginPath();
-        const comboTextWidth = Math.max(0, outerWidth - (isActive ? weightWidth - margin : 0) - 20);
-        ctx.rect(margin + 10, y, comboTextWidth, height);
-        ctx.clip();
-        ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR || "#DDD";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.font = `${Math.round(height * 0.65)}px Arial`;
-        ctx.fillText(this.value || "none", margin + 12, y + height * 0.5);
-        ctx.restore();
-
-        if (!isActive) {
-            return;
-        }
-
-        const weightInnerWidth = weightWidth - margin;
-        const weightX = margin + outerWidth - weightInnerWidth;
-        const arrowWidth = 18;
-        const weight = this._tagWeight ?? 1.0;
-
-        this.hitAreas.weightDec.bounds = [weightX, y, arrowWidth, height];
-        this.hitAreas.weightVal.bounds = [weightX + arrowWidth, y, Math.max(0, weightInnerWidth - arrowWidth * 2), height];
-        this.hitAreas.weightInc.bounds = [weightX + weightInnerWidth - arrowWidth, y, arrowWidth, height];
-
+        ctx.font = `${Math.round(H * 0.5)}px Arial`;
+        ctx.fillStyle = "#888";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `${Math.round(height * 0.5)}px Arial`;
-        ctx.fillStyle = "#888";
-        ctx.fillText("◀", weightX + arrowWidth / 2, y + height * 0.5);
+        ctx.fillText("\u25C0", weightX + 10, y + H * 0.5);
 
         ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR || "#DDD";
-        ctx.font = `${Math.round(height * 0.6)}px Arial`;
-        ctx.fillText(weight.toFixed(2), weightX + weightInnerWidth / 2, y + height * 0.5);
+        ctx.font = `${Math.round(H * 0.6)}px Arial`;
+        ctx.fillText(weight.toFixed(2), weightX + weightInnerW / 2, y + H * 0.5);
 
         ctx.fillStyle = "#888";
-        ctx.font = `${Math.round(height * 0.5)}px Arial`;
-        ctx.fillText("▶", weightX + weightInnerWidth - arrowWidth / 2, y + height * 0.5);
-    }
-
-    mouse(event, pos, node) {
-        if (event.type === "pointerdown") {
-            this.mouseDowned = [...pos];
-            this.isMouseDownedAndOver = true;
-            this.downedHitAreasForClick.length = 0;
-            let handled = false;
-            for (const part of Object.values(this.hitAreas)) {
-                if (!this.clickWasWithinBounds(pos, part.bounds)) continue;
-                this.downedHitAreasForClick.push(part);
-                part.wasMouseClickedAndIsOver = true;
-                handled = true;
-            }
-            return handled;
-        }
-
-        if (event.type === "pointermove") {
-            if (!this.mouseDowned) return false;
-            for (const part of this.downedHitAreasForClick) {
-                part.wasMouseClickedAndIsOver = this.clickWasWithinBounds(pos, part.bounds);
-            }
-            return true;
-        }
-
-        if (event.type === "pointerup") {
-            if (!this.mouseDowned) return false;
-            const clickedParts = [...this.downedHitAreasForClick];
-            this.cancelMouseDown();
-            let handled = false;
-            for (const part of clickedParts) {
-                if (!this.clickWasWithinBounds(pos, part.bounds)) continue;
-                const result = part.onClick?.call(this, event, pos, node, part);
-                handled = handled || result === true;
-            }
-            return handled;
-        }
-
-        return false;
-    }
-
-    onComboClick(event, pos, node) {
-        const canvas = app.canvas;
-        if (!canvas) return false;
-        openComboDropdown(this, node, this.options.values, canvas, event);
-        return true;
-    }
-
-    onWeightDecClick() {
-        updateInlineTagWeight(this, (this._tagWeight ?? 1.0) - TAG_WEIGHT_STEP);
-        return true;
-    }
-
-    onWeightIncClick() {
-        updateInlineTagWeight(this, (this._tagWeight ?? 1.0) + TAG_WEIGHT_STEP);
-        return true;
-    }
-
-    onWeightValueClick(event) {
-        const canvas = app.canvas;
-        if (!canvas) return false;
-        canvas.prompt("Weight", this._tagWeight ?? 1.0, (value) => {
-            updateInlineTagWeight(this, value);
-        }, event);
-        return true;
+        ctx.font = `${Math.round(H * 0.5)}px Arial`;
+        ctx.fillText("\u25B6", weightX + weightInnerW - 10, y + H * 0.5);
     }
 }
 
-class InvisibleValueWidget {
-    constructor(name, value) {
-        this.name = name;
-        this.type = "custom";
-        this.hidden = true;
-        this.options = { serialize: true };
-        this.value = value;
-    }
-
-    serializeValue() {
-        return this.value;
-    }
-
-    draw() {}
-
-    mouse() {
-        return false;
-    }
-
-    computeSize() {
-        return [0, -4];
-    }
-}
-
-function openComboDropdown(widget, node, options, canvas, event) {
-    const refWindow = canvas.getCanvasWindow();
-    const values = options || widget.options?.values || [];
+function openComboDropdown(w, node, options, canvas) {
+    const ref_window = canvas.getCanvasWindow();
+    const values = options || w.options?.values || [];
     new LiteGraph.ContextMenu(
         values,
         {
             scale: Math.max(1, canvas.ds?.scale || 1),
-            event,
+            event: undefined,
             className: "dark",
             callback: (selected) => {
-                widget.value = selected;
-                widget.triggerChange?.(node);
+                w.value = selected;
+                if (w.callback) w.callback(selected, null, node, [0, 0], w);
                 node.setDirtyCanvas?.(true, true);
             },
         },
-        refWindow
+        ref_window
     );
+}
+
+function mouseComboWeightWidget(event, pos, node) {
+    const w = this;
+    if (event.type !== "pointerdown" && event.type !== "mousedown") return true;
+
+    const isActive = w.value !== "none" && !isTagSeparatorValue(w.value);
+    const margin = 15;
+    const WEIGHT_W = isActive ? TAG_WEIGHT_AREA_WIDTH : 0;
+    const comboW = node.size[0] - WEIGHT_W;
+    const x = pos[0];
+
+    // Weight area click
+    if (isActive && x >= comboW) {
+        const weightX = comboW;
+        const weightInnerW = WEIGHT_W - margin;
+        const relX = x - weightX;
+        if (relX < 20) {
+            w._tagWeight = Math.max(TAG_WEIGHT_MIN, Math.round(((w._tagWeight ?? 1.0) - TAG_WEIGHT_STEP) * 100) / 100);
+        } else if (relX > weightInnerW - 20) {
+            w._tagWeight = Math.min(TAG_WEIGHT_MAX, Math.round(((w._tagWeight ?? 1.0) + TAG_WEIGHT_STEP) * 100) / 100);
+        }
+        if (w._syncWeight) w._syncWeight(w._tagWeight);
+        return true;
+    }
+
+    // Combo area click — open dropdown manually
+    if (x >= margin && x < comboW - margin) {
+        const canvas = app.canvas;
+        if (canvas) openComboDropdown(w, node, w.options?.values, canvas);
+        return true;
+    }
+
+    return true;
 }
 
 function inferTagGroup(node) {
@@ -827,15 +682,9 @@ function getTagWidgets(node, group) {
     return (node.widgets || []).filter((w) => isTagWidget(w, getTagPrefixes(node, group || node._tagGroup)));
 }
 
-function getPreferredTagWidgets(node, group) {
-    const widgets = getTagWidgets(node, group);
-    const managedWidgets = widgets.filter(isManagedInlineTagWidget);
-    return managedWidgets.length ? managedWidgets : widgets;
-}
-
 function initTagCallbacks(node, group) {
-    for (const w of getPreferredTagWidgets(node, group)) {
-        w.triggerChange = () => {
+    for (const w of getTagWidgets(node, group)) {
+        w.callback = () => {
             if (isTagSeparatorValue(w.value)) {
                 w.value = "none";
             }
@@ -869,59 +718,72 @@ function reconcileTagWidgets(node, group) {
     const valueToParent = node._valueToParent || {};
     const baseGroup = getWidgetBaseGroup(group);
     if (!options) return;
-    const activeEntries = getPreferredTagWidgets(node, group)
+    // 활성(non-"none") 값과 가중치를 순서대로 수집
+    const activeEntries = getTagWidgets(node, group)
         .filter((w) => w.value !== "none" && !isTagSeparatorValue(w.value) && options.includes(w.value))
         .map((w) => {
-            const idx = getWidgetIndex(w);
+            const idx = w.name.match(/_(\d+)$/)?.[1];
             const weightWidget = idx ? getWidgetByName(node, `weight_${idx}`) : null;
-            return {
-                value: w.value,
-                weight: weightWidget?.value ?? (w._tagWeight ?? 1.0),
-            };
+            return { value: w.value, weight: weightWidget?.value ?? (w._tagWeight ?? 1.0) };
         });
     const desiredCount = activeEntries.length + 1;
     const prefixes = getTagPrefixes(node, group);
+    // 기존 tag 위젯과 weight 위젯 모두 제거 (reset 버튼은 남김)
     node.widgets = node.widgets.filter((w) => (!isTagWidget(w, prefixes) || w.name === "Reset") && !isWeightWidget(w));
+    // 새 tag + hidden weight 위젯 생성
     const newWidgets = [];
     for (let i = 0; i < desiredCount; i++) {
         const entry = i < activeEntries.length ? activeEntries[i] : { value: "none", weight: 1.0 };
         const parent = group === "all" ? baseGroup : (valueToParent[entry.value] || group);
         const name = `${parent}_${i + 1}`;
-        const w = node.addCustomWidget(
-            new TagInlineComboWidget(name, entry.value, entry.weight, options, () => {
-                if (isTagSeparatorValue(w.value)) {
-                    w.value = "none";
-                }
+        const w = node.addWidget(
+            "combo",
+            name,
+            entry.value,
+            () => {
+                if (isTagSeparatorValue(w.value)) w.value = "none";
                 reconcileTagWidgets(node, group);
                 const previewText = updatePreviewWidget(node, group);
                 syncTextWidget(node, group, previewText);
-            })
+            },
+            { values: options, serialize: true }
         );
+        w.options = { ...(w.options || {}), values: options, serialize: true };
         node.widgets.pop();
 
         if (entry.value !== "none") {
-            w._tagWeight = Number(entry.weight ?? 1.0);
+            // 활성 태그: 커스텀 draw/mouse로 인라인 가중치 표시
+            w._tagWeight = entry.weight;
+            w.draw = drawComboWeightWidget;
+            w.mouse = mouseComboWeightWidget;
+            w.type = "ghtools_combo_weight";
 
-            const hiddenWeightWidget = node.addCustomWidget(
-                new InvisibleValueWidget(`weight_${i + 1}`, w._tagWeight)
+            // hidden weight 위젯 (직렬화/백엔드 전달용)
+            const hw = node.addWidget(
+                "number", `weight_${i + 1}`, entry.weight,
+                () => {},
+                { min: 0.0, max: 3.0, step: 0.05, precision: 2, serialize: true }
             );
+            hw.options = { ...(hw.options || {}), min: 0.0, max: 3.0, step: 0.05, precision: 2, serialize: true };
+            hw.type = "hidden";
+            hw.computeSize = () => [0, -4];
             node.widgets.pop();
 
-            w._syncWeight = (value) => {
-                const parsed = Number(value);
-                const nextWeight = Number.isFinite(parsed) ? parsed : 1.0;
-                w._tagWeight = nextWeight;
-                hiddenWeightWidget.value = nextWeight;
+            w._syncWeight = (val) => {
+                w._tagWeight = val;
+                hw.value = val;
                 const previewText = updatePreviewWidget(node, group);
                 syncTextWidget(node, group, previewText);
                 app.graph.setDirtyCanvas(true);
             };
 
-            newWidgets.push(w, hiddenWeightWidget);
+            newWidgets.push(w);
+            newWidgets.push(hw);
         } else {
             newWidgets.push(w);
         }
     }
+    // text 위젯 앞에 삽입
     const textIdx = node.widgets.findIndex((w) => w.name === "text");
     if (textIdx >= 0) {
         node.widgets.splice(textIdx, 0, ...newWidgets);
@@ -933,24 +795,6 @@ function reconcileTagWidgets(node, group) {
 }
 
 function resetTagWidgets(node) {
-    const randomPickWidget = getWidgetByName(node, "random_pick");
-    if (randomPickWidget) {
-        randomPickWidget.value = false;
-    }
-
-    const textWidget = getWidgetByName(node, "text");
-    if (textWidget) {
-        textWidget.value = "";
-    }
-
-    const previewWidget = getWidgetByName(node, "preview");
-    if (previewWidget) {
-        previewWidget.value = "";
-    }
-
-    node._tagLoaderLastAppliedText = "";
-    node._tagLoaderLastManualText = "";
-
     getTagWidgets(node).forEach((w) => {
         if (w.name !== "Reset") {
             w.value = "none";
@@ -963,8 +807,7 @@ function resetTagWidgets(node) {
     const group = node._tagGroup || inferTagGroup(node) || Object.values(node._valueToParent || {})[0] || null;
     if (group) {
         reconcileTagWidgets(node, group);
-        updatePreviewWidget(node, group);
+        const previewText = updatePreviewWidget(node, group);
+        syncTextWidget(node, group, previewText);
     }
-
-    app.graph.setDirtyCanvas(true);
 }

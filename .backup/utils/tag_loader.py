@@ -35,27 +35,18 @@ def _merge_keyword_texts(*texts):
     return f"{', '.join(merged)}," if merged else ""
 
 
-def _coerce_weight(value, default=1.0):
-    try:
-        weight = float(value)
-    except (TypeError, ValueError):
-        return default
-    return max(0.0, min(3.0, round(weight, 2)))
-
-
 def _apply_weight_to_tag(tag_text, weight):
-    weight = _coerce_weight(weight)
+    """Apply weight formatting to each keyword in a tag text."""
+    weight = round(weight, 2)
     if weight == 1.0:
         return tag_text
-
-    weight_text = f"{weight:g}"
+    w_str = f"{weight:g}"
     parts = []
     for chunk in str(tag_text or "").split(","):
         keyword = chunk.strip()
         if keyword:
-            parts.append(f"({keyword}:{weight_text})")
-
-    return f"{', '.join(parts)}," if parts else ""
+            parts.append(f"({keyword}:{w_str})")
+    return ", ".join(parts) + ("," if parts else "")
 
 
 def load_tags_json():
@@ -145,29 +136,6 @@ class DynamicSectionTagOptions(dict):
         return dict.__getitem__(self, key)
 
 
-class DynamicWeightOptions(dict):
-    """Allow dynamic optional weight inputs like weight_1, weight_2, ..."""
-
-    def __contains__(self, key):
-        if not key.startswith("weight_"):
-            return False
-        suffix = key[7:]
-        return suffix.isdigit() and int(suffix) >= 1
-
-    def __getitem__(self, key):
-        if key in self:
-            return (
-                "FLOAT",
-                {
-                    "default": 1.0,
-                    "min": 0.0,
-                    "max": 3.0,
-                    "step": 0.05,
-                },
-            )
-        return dict.__getitem__(self, key)
-
-
 def collect_dynamic_values(kwargs, prefix):
     items = []
     for key, value in kwargs.items():
@@ -207,10 +175,9 @@ def collect_loader_values(kwargs):
                 if suffix.isdigit():
                     idx = int(suffix)
                 break
-        if idx is None:
-            continue
-        weight = _coerce_weight(kwargs.get(f"weight_{idx}", 1.0))
-        items.append((idx, value, weight))
+        if idx is not None:
+            weight = float(kwargs.get(f"weight_{idx}", 1.0))
+            items.append((idx, value, weight))
     items.sort(key=lambda x: x[0])
     return items
 
@@ -225,7 +192,7 @@ def build_tag_loader_description():
         "- Leave `sections` empty to use all top-level sections.",
         "- Example: age, grade",
         "- Then pick values from the dynamic dropdowns `tag_1`, `tag_2`, ...",
-        "- You can edit existing `datas/tag_*.json` files or add new ones in the `ComfyUI\\custom_nodes\\comfyuI-ghtools\\datas` folder.",
+        "- You can edit existing `datas/tag_*.json` files or add new ones in the `ComfyUI\custom_nodes\comfyuI-ghtools\datas` folder.",
         "",
         "Available top-level sections",
     ]
@@ -300,7 +267,6 @@ class TagLoader:
             "optional": {
                 **DynamicTagOptions("tag", all_options),
                 **DynamicSectionTagOptions(all_options),
-                **DynamicWeightOptions(),
             },
             "_option_map": option_map,
             "_section_values": section_values,
@@ -318,11 +284,11 @@ class TagLoader:
     def IS_CHANGED(cls, sections="", random_pick=False, preview="", text="", **kwargs):
         if random_pick:
             return float("nan")
-        selected_values = tuple((value, weight) for _, value, weight in collect_loader_values(kwargs))
+        selected = tuple((value, weight) for _, value, weight in collect_loader_values(kwargs))
         return (
             str(sections or "").strip().lower(),
             False,
-            selected_values,
+            selected,
             str(text or "").strip(),
         )
 
