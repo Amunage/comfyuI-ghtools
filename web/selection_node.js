@@ -47,6 +47,260 @@ function resetNodesOnEvent(eventName, nodeType) {
     });
 }
 
+function setupSelectionBoolean(nodeType) {
+    const config = {
+        inputPrefix: "input",
+        togglePrefix: "select",
+        inputType: "*",
+    };
+
+    const refreshNode = (node, options = {}) => {
+        const { syncInputs = false, deferred = false } = options;
+        const run = () => {
+            ensureSelectionBooleanInput(node, config);
+            if (syncInputs) {
+                syncSelectionBooleanInputs(node, config);
+            }
+            syncSelectionBooleanWidgets(node, config);
+            updateSelectionBooleanInputLabels(node, config.inputPrefix);
+            updateSelectionBooleanToggleLabels(node, config);
+            node.setDirtyCanvas(true, true);
+        };
+
+        if (deferred) {
+            setTimeout(run, 0);
+            return;
+        }
+
+        run();
+    };
+
+    const onNodeCreated = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function () {
+        const result = onNodeCreated?.apply(this, arguments);
+
+        refreshNode(this);
+        return result;
+    };
+
+    const onConnectionsChange = nodeType.prototype.onConnectionsChange;
+    nodeType.prototype.onConnectionsChange = function () {
+        const result = onConnectionsChange?.apply(this, arguments);
+        refreshNode(this, { syncInputs: true });
+        return result;
+    };
+
+    const onConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function () {
+        const result = onConfigure?.apply(this, arguments);
+        refreshNode(this, { syncInputs: true, deferred: true });
+        return result;
+    };
+
+    const onAdded = nodeType.prototype.onAdded;
+    nodeType.prototype.onAdded = function () {
+        const result = onAdded?.apply(this, arguments);
+        refreshNode(this, { syncInputs: true, deferred: true });
+        return result;
+    };
+}
+
+function ensureSelectionBooleanInput(node, config) {
+    const hasInput = node.inputs?.some((input) => input.name?.startsWith(config.inputPrefix));
+    if (!hasInput) {
+        node.addInput(`${config.inputPrefix}1`, config.inputType);
+    }
+}
+
+function syncSelectionBooleanInputs(node, config) {
+    if (!node?.inputs) {
+        return;
+    }
+
+    const collectInputs = () =>
+        node.inputs.filter((input) => input.name?.startsWith(config.inputPrefix));
+
+    let inputs = collectInputs();
+    if (!inputs.length) {
+        node.addInput(`${config.inputPrefix}1`, config.inputType);
+        inputs = collectInputs();
+    }
+
+    const trailingUnlinked = [];
+    for (let index = inputs.length - 1; index >= 0; index--) {
+        const input = inputs[index];
+        if (input.link) {
+            break;
+        }
+        trailingUnlinked.push(input);
+    }
+
+    while (trailingUnlinked.length > 1) {
+        const removableInput = trailingUnlinked.pop();
+        const inputIndex = node.inputs.indexOf(removableInput);
+        if (inputIndex >= 0) {
+            node.removeInput(inputIndex);
+        }
+    }
+
+    inputs = collectInputs();
+    const lastInput = inputs[inputs.length - 1];
+    if (!lastInput || lastInput.link) {
+        node.addInput(`${config.inputPrefix}${inputs.length + 1}`, config.inputType);
+        inputs = collectInputs();
+    }
+
+    let validIndex = 1;
+    node.inputs.forEach((input) => {
+        if (input.name?.startsWith(config.inputPrefix)) {
+            input.name = `${config.inputPrefix}${validIndex}`;
+            input.label = input.name;
+            validIndex += 1;
+        }
+    });
+}
+
+function syncSelectionBooleanWidgets(node, config) {
+    if (!node.widgets) {
+        node.widgets = [];
+    }
+
+    const desiredCount = countSelectionBooleanInputs(node, config.inputPrefix);
+    const toggles = node.widgets.filter((widget) => widget.__ghSelectionBooleanToggle === true);
+
+    while (toggles.length < desiredCount) {
+        const nextIndex = toggles.length + 1;
+        const widget = node.addWidget("toggle", `${config.togglePrefix}_${nextIndex}`, false, undefined, {
+            on: "ON",
+            off: "OFF",
+        });
+        widget.__ghSelectionBooleanToggle = true;
+        toggles.push(widget);
+    }
+
+    for (let index = toggles.length - 1; index >= desiredCount; index--) {
+        const widget = toggles[index];
+        const widgetIndex = node.widgets.indexOf(widget);
+        if (widgetIndex >= 0) {
+            node.widgets.splice(widgetIndex, 1);
+        }
+        toggles.splice(index, 1);
+    }
+
+    toggles.forEach((widget, index) => {
+        const inputIndex = index + 1;
+        widget.name = `${config.togglePrefix}_${inputIndex}`;
+        widget.options = { on: "ON", off: "OFF" };
+        widget.callback = (value) => {
+            applyExclusiveSelectionBooleanToggle(node, config, value ? inputIndex : null);
+            updateSelectionBooleanToggleLabels(node, config);
+        };
+    });
+
+    applyExclusiveSelectionBooleanToggle(node, config);
+    updateSelectionBooleanToggleLabels(node, config);
+}
+
+function countSelectionBooleanInputs(node, prefix) {
+    if (!node?.inputs) {
+        return 0;
+    }
+    return node.inputs.filter((input) => input.name?.startsWith(prefix)).length;
+}
+
+function updateSelectionBooleanInputLabels(node, prefix) {
+    if (!node?.inputs) {
+        return;
+    }
+
+    node.inputs.forEach((input) => {
+        if (!input.name?.startsWith(prefix)) {
+            return;
+        }
+
+        const suffix = input.name.slice(prefix.length);
+        const inputIndex = Number.parseInt(suffix, 10);
+        if (Number.isNaN(inputIndex)) {
+            input.label = input.name;
+            return;
+        }
+
+        input.label = getSelectionBooleanConnectedLabel(node, prefix, inputIndex) || input.name;
+    });
+}
+
+function updateSelectionBooleanToggleLabels(node, config) {
+    const toggles = node.widgets?.filter((widget) => widget.__ghSelectionBooleanToggle === true) ?? [];
+    toggles.forEach((widget, index) => {
+        const inputIndex = index + 1;
+        widget.name = `${config.togglePrefix}_${inputIndex}`;
+        widget.label = getSelectionBooleanConnectedLabel(node, config.inputPrefix, inputIndex) || "(none)";
+    });
+}
+
+function applyExclusiveSelectionBooleanToggle(node, config, preferredIndex = null) {
+    const toggles = node.widgets?.filter((widget) => widget.__ghSelectionBooleanToggle === true) ?? [];
+    if (!toggles.length) {
+        return;
+    }
+
+    const connectedIndices = [];
+    toggles.forEach((widget, index) => {
+        const inputIndex = index + 1;
+        if (isSelectionBooleanInputConnected(node, config.inputPrefix, inputIndex)) {
+            connectedIndices.push(inputIndex);
+        } else {
+            widget.value = false;
+        }
+    });
+
+    if (!connectedIndices.length) {
+        node.setDirtyCanvas(true, true);
+        return;
+    }
+
+    let selectedIndex = preferredIndex;
+    if (!selectedIndex || !connectedIndices.includes(selectedIndex)) {
+        const enabledConnected = connectedIndices.filter((index) => Boolean(toggles[index - 1]?.value));
+        selectedIndex = enabledConnected[0] ?? connectedIndices[0];
+    }
+
+    connectedIndices.forEach((index) => {
+        toggles[index - 1].value = index === selectedIndex;
+    });
+
+    node.setDirtyCanvas(true, true);
+}
+
+function isSelectionBooleanInputConnected(node, prefix, index) {
+    if (!node?.inputs) {
+        return false;
+    }
+
+    const input = node.inputs.find((candidate) => candidate.name === `${prefix}${index}`);
+    return Boolean(input?.link);
+}
+
+function getSelectionBooleanConnectedLabel(node, prefix, index) {
+    if (!node?.inputs) {
+        return null;
+    }
+
+    const input = node.inputs.find((candidate) => candidate.name === `${prefix}${index}`);
+    if (!input?.link) {
+        return null;
+    }
+
+    const graph = node.graph ?? app.graph;
+    const link = graph?.links?.[input.link];
+    if (!link) {
+        return null;
+    }
+
+    const originNode = graph?.getNodeById?.(link.origin_id);
+    return originNode?.title ?? null;
+}
+
 // ─── GH Selection Input (GHAnySelection) ───────────────
 
 function setupAnySelection(nodeType) {
@@ -173,6 +427,8 @@ app.registerExtension({
             setupAnySelection(nodeType);
         } else if (nodeData.name === "GHForkSelection") {
             setupForkSelection(nodeType);
+        } else if (nodeData.name === "GHSelectionBoolean") {
+            setupSelectionBoolean(nodeType);
         }
     },
 

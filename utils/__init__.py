@@ -21,6 +21,9 @@ from .generate_llm import GenerateLLM
 from .prompt_buffer import PromptBuffer
 from .steps_cfg_value import StepsCfgValue
 from .convert_value import ConvertValue
+from .data_transfer import DataTransferReceiver
+from .data_transfer import DataTransferSender
+from .selection_boolean import SelectionBoolean
 from .selection_output import ForkSelection
 from .selection_input import AnySelection
 
@@ -44,6 +47,9 @@ NODE_CLASS_MAPPINGS = {
     "GHPromptBuffer": PromptBuffer,
     "GHStepsCfgValue": StepsCfgValue,
     "GHConvertValue": ConvertValue,
+    "GHDataTransferSender": DataTransferSender,
+    "GHDataTransferReceiver": DataTransferReceiver,
+    "GHSelectionBoolean": SelectionBoolean,
     "GHForkSelection": ForkSelection,
     "GHAnySelection": AnySelection,
 }
@@ -67,6 +73,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GHPromptBuffer": "🐴Prompt Buffer",
     "GHStepsCfgValue": "🐴Steps CFG Value",
     "GHConvertValue": "🐴Convert Value",
+    "GHDataTransferSender": "🐴Data Sender",
+    "GHDataTransferReceiver": "🐴Data Receiver",
+    "GHSelectionBoolean": "🐴Selection Boolean",
     "GHForkSelection": "🐴Selection Output",
     "GHAnySelection": "🐴Selection Input",
 }

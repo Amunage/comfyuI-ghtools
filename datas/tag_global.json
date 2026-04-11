@@ -5,6 +5,10 @@
     "성인등급": "nsfw,",
     "검열해제": "explicit,"
   },
+    "illust_style": {
+    "툰 스타일": "toon style,",
+    "실사 배경": "photo background,"
+  },
   "camera_focus": {
     "정면에서 본 모습": "straight-on,",
     "옆에서 본 모습": "side view,",
