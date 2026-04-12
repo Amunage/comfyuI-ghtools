@@ -16,7 +16,7 @@ def _load_node_registry(module_name: str):
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
-for category_module in (".utils", ".character"):
+for category_module in (".utils",):
     class_mappings, display_mappings = _load_node_registry(category_module)
     NODE_CLASS_MAPPINGS.update(class_mappings)
     NODE_DISPLAY_NAME_MAPPINGS.update(display_mappings)

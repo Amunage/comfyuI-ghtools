@@ -61,6 +61,17 @@
     "UV 라이트": "ultraviolet light,",
     "비네팅": "vignetting,"
   },
+  "weather": {
+    "맑음": "clear,",
+    "흐림": "cloudy,",
+    "비": "rain,",
+    "눈": "snow,",
+    "안개": "fog,",
+    "바람": "wind,",
+    "번개": "lightning,",
+    "무지개": "rainbow,",
+    "폭풍우": "storm,"
+  },
   "background_indoor": {
     "실내": "indoor,",
     "거실": "living room,",
