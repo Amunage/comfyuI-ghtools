@@ -18,6 +18,7 @@ from .audio_preview import AudioPreview
 from .audio_vocalrange import AudioVocalRange
 
 from .generate_llm import GenerateLLM
+from .generate_local_llm import GenerateLocalLLM
 from .prompt_buffer import PromptBuffer
 from .steps_cfg_value import StepsCfgValue
 from .convert_value import ConvertValue
@@ -44,6 +45,7 @@ NODE_CLASS_MAPPINGS = {
     "GHAudioPreview": AudioPreview,
     "GHAudioVocalRange": AudioVocalRange,
     "GHGenerateLLM": GenerateLLM,
+    "GHGenerateLocalLLM": GenerateLocalLLM,
     "GHPromptBuffer": PromptBuffer,
     "GHStepsCfgValue": StepsCfgValue,
     "GHConvertValue": ConvertValue,
@@ -70,6 +72,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GHAudioPreview": "🐴Audio Preview",
     "GHAudioVocalRange": "🐴Audio Vocal Range",
     "GHGenerateLLM": "🐴Generate LLM",
+    "GHGenerateLocalLLM": "🐴Generate Local LLM",
     "GHPromptBuffer": "🐴Prompt Buffer",
     "GHStepsCfgValue": "🐴Steps CFG Value",
     "GHConvertValue": "🐴Convert Value",
