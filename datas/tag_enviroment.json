@@ -61,16 +61,23 @@
     "UV 라이트": "ultraviolet light,",
     "비네팅": "vignetting,"
   },
-  "weather": {
-    "맑음": "clear,",
-    "흐림": "cloudy,",
+  "background_season": {
+    "봄": "spring,",
+    "여름": "summer,",
+    "가을": "autumn,",
+    "겨울": "winter,"
+  },
+  "background_weather": {
+    "맑은 하늘": "clear sky,",
+    "흐린 하늘": "cloudy sky,",
+    "적란운": "cumulonimbus cloud,",
+    "먹구름": "dark clouds,",
     "비": "rain,",
-    "눈": "snow,",
-    "안개": "fog,",
-    "바람": "wind,",
-    "번개": "lightning,",
+    "낙뢰": "lightning,",
+    "폭풍": "storm,",
     "무지개": "rainbow,",
-    "폭풍우": "storm,"
+    "눈": "snowing,",
+    "안개": "fog,"
   },
   "background_indoor": {
     "실내": "indoor,",

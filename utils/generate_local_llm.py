@@ -163,7 +163,7 @@ class GenerateLocalLLM:
 				"max_tokens": (
 					"INT",
 					{
-						"default": 128,
+						"default": 64,
 						"min": 1,
 						"max": 4096,
 						"step": 1,
@@ -172,9 +172,9 @@ class GenerateLocalLLM:
 				"ctx_size": (
 					"INT",
 					{
-						"default": 4096,
+						"default": 512,
 						"min": 0,
-						"max": 262144,
+						"max": 8192,
 						"step": 1,
 					},
 				),
@@ -190,7 +190,7 @@ class GenerateLocalLLM:
 				"timeout_seconds": (
 					"INT",
 					{
-						"default": 180,
+						"default": 60,
 						"min": 10,
 						"max": 3600,
 						"step": 1,
