@@ -12,14 +12,6 @@ def _comfyui_root_dir():
 	return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
-def _default_llama_cli_path():
-	return os.path.join(_comfyui_root_dir(), "models", "LLM", "llama.cpp", "llama-cli.exe")
-
-
-def _default_model_path():
-	return os.path.join(_comfyui_root_dir(), "models", "LLM", "supergemma4.gguf")
-
-
 def _build_request_text(user_text: str):
 	clean_text = (user_text or "").strip()
 	return f"Translate this into natural English. Output only the translation, with no explanation: {clean_text}"
@@ -122,7 +114,7 @@ class GenerateLocalLLM:
 				"llama_cli_path": (
 					"STRING",
 					{
-						"default": _default_llama_cli_path(),
+						"default": "",
 						"multiline": False,
 						"placeholder": "path to llama-cli.exe",
 					},
@@ -130,7 +122,7 @@ class GenerateLocalLLM:
 				"model_path": (
 					"STRING",
 					{
-						"default": _default_model_path(),
+						"default": "",
 						"multiline": False,
 						"placeholder": "path to .gguf model",
 					},
