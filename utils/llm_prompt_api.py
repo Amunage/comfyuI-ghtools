@@ -27,7 +27,7 @@ def ensure_google_genai():
 		) from exc
 
 
-class GenerateLLM:
+class LLMPromptAPI:
 	"""
 	입력 문장을 ComfyUI용 자연어 프롬프트로 재작성하는 LLM 노드.
 	실행 스위치가 OFF이면 LLM 호출 없이 입력 문장을 그대로 반환.

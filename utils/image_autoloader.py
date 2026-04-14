@@ -367,8 +367,8 @@ class ImageAutoloader(PreviewImage):
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "mask")
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("image", "mask", "image_path")
     FUNCTION = "load_latest"
     CATEGORY = "🐴GHTools/Utils"
     OUTPUT_NODE = True
@@ -415,7 +415,7 @@ class ImageAutoloader(PreviewImage):
 
         return {
             "ui": preview["ui"],
-            "result": (rgb, mask),
+            "result": (rgb, mask, os.path.normpath(target)),
         }
 
 

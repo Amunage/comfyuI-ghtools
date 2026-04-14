@@ -17,8 +17,9 @@ from .gif_assembler import GifAssembler
 from .audio_preview import AudioPreview
 from .audio_vocalrange import AudioVocalRange
 
-from .generate_llm import GenerateLLM
-from .generate_local_llm import GenerateLocalLLM
+from .llm_prompt_api import LLMPromptAPI
+from .llm_prompt_t2t import LLMPromptT2T
+from .llm_prompt_i2t import LLMPromptI2T
 from .prompt_buffer import PromptBuffer
 from .steps_cfg_value import StepsCfgValue
 from .convert_value import ConvertValue
@@ -44,8 +45,9 @@ NODE_CLASS_MAPPINGS = {
     "GHGifAssembler": GifAssembler,
     "GHAudioPreview": AudioPreview,
     "GHAudioVocalRange": AudioVocalRange,
-    "GHGenerateLLM": GenerateLLM,
-    "GHGenerateLocalLLM": GenerateLocalLLM,
+    "GHLLMPromptAPI": LLMPromptAPI,
+    "GHLLMPromptT2T": LLMPromptT2T,
+    "GHLLMPromptI2T": LLMPromptI2T,
     "GHPromptBuffer": PromptBuffer,
     "GHStepsCfgValue": StepsCfgValue,
     "GHConvertValue": ConvertValue,
@@ -71,8 +73,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GHGifAssembler": "🐴GIF Assembler",
     "GHAudioPreview": "🐴Audio Preview",
     "GHAudioVocalRange": "🐴Audio Vocal Range",
-    "GHGenerateLLM": "🐴Generate LLM",
-    "GHGenerateLocalLLM": "🐴Generate Local LLM",
+    "GHLLMPromptAPI": "🐴LLM Prompt API",
+    "GHLLMPromptT2T": "🐴LLM Prompt T2T",
+    "GHLLMPromptI2T": "🐴LLM Prompt I2T",
     "GHPromptBuffer": "🐴Prompt Buffer",
     "GHStepsCfgValue": "🐴Steps CFG Value",
     "GHConvertValue": "🐴Convert Value",
