@@ -9,7 +9,7 @@ DEFAULT_LLAMA_CLI_PATH = r"D:\llama.cpp\llama-cli.exe"
 DEFAULT_MODEL_PATH = r"D:\llama.cpp\models\supergemma4\supergemma4-26b-abliterated-multimodal-Q4_K_M.gguf"
 DEFAULT_MMPROJ_PATH = r"D:\llama.cpp\models\supergemma4\mmproj-supergemma4-26b-abliterated-multimodal-f16.gguf"
 
-TEMPERATURE = 0.2
+TEMPERATURE = 0.7
 TOP_P = 0.9
 TOP_K = 40
 REPEAT_PENALTY = 1.1
@@ -86,6 +86,10 @@ def _clean_response_text(raw: str, prompt_text: str) -> str:
     text = re.sub(r"llama_memory_breakdown_print:.*$", "", text, flags=re.IGNORECASE | re.DOTALL)
     lines = []
     skip_prefixes = (
+        "priority instruction:",
+        "base task:",
+        "extra instruction:",
+        "additional instruction:",
         "loading model",
         "build",
         "model",
@@ -140,7 +144,12 @@ def _build_prompt(extra_instruction: str) -> str:
     extra_instruction = _sanitize_text(extra_instruction)
     if not extra_instruction:
         return INSTRUCTION_PROMPT
-    return f"{INSTRUCTION_PROMPT}\nAdditional instruction: {extra_instruction}"
+    return (
+        f"{INSTRUCTION_PROMPT}\n"
+        "Reference instruction: Use the following as additional guidance while following the base task above. "
+        "Treat it as supplementary context, not a replacement for the base task.\n"
+        f"Extra instruction: {extra_instruction}"
+    )
 
 
 def _run_single_turn(llama_cli_path: str, model_path: str, mmproj_path: str, image_path: str, prompt_text: str) -> str:
@@ -153,6 +162,8 @@ def _run_single_turn(llama_cli_path: str, model_path: str, mmproj_path: str, ima
         "--simple-io",
         "--single-turn",
         "--no-warmup",
+        "--reasoning",
+        "off",
         "--log-colors",
         "off",
         "--color",

@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import tempfile
 
@@ -6,9 +7,9 @@ import tempfile
 DEFAULT_LLAMA_CLI_PATH = r"D:\llama.cpp\llama-cli.exe"
 DEFAULT_MODEL_PATH = r"D:\llama.cpp\models\supergemma4\supergemma4-26b-abliterated-multimodal-Q4_K_M.gguf"
 
-TEMPERATURE = 0.2
-MAX_TOKENS = 1024
-CTX_SIZE = 2048
+TEMPERATURE = 0.7
+MAX_TOKENS = 2048
+CTX_SIZE = 4096
 THREADS = 8
 TIMEOUT_SECONDS = 60
 BANNER_CHARS = {"▄", "█", "▀", " "}
@@ -104,6 +105,18 @@ def _is_metadata_line(line: str, prompt_text: str) -> bool:
     return False
 
 
+def _strip_end_thinking(text: str) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    parts = re.split(r"\[End thinking\]", text, flags=re.IGNORECASE)
+    if len(parts) > 1:
+        return parts[-1].strip()
+
+    return text
+
+
 def _extract_result_text(output: str, prompt_text: str) -> str:
     if not output or not output.strip():
         return ""
@@ -131,7 +144,7 @@ def _extract_result_text(output: str, prompt_text: str) -> str:
             continue
         lines.append(stripped)
 
-    return "\n".join(lines).strip()
+    return _strip_end_thinking("\n".join(lines).strip())
 
 
 def _run_single_turn(llama_cli_path: str, model_path: str, prompt_text: str) -> str:

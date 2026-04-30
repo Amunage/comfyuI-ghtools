@@ -1,4 +1,5 @@
 import importlib
+import re
 import subprocess
 import sys
 
@@ -25,6 +26,18 @@ def ensure_google_genai():
 			"LLM 실행 실패: `google-genai` 패키지 자동 설치에 실패했습니다. "
 			"직접 `pip install google-genai` 후 다시 시도해 주세요."
 		) from exc
+
+
+def _strip_end_thinking(text: str) -> str:
+	text = (text or "").strip()
+	if not text:
+		return ""
+
+	parts = re.split(r"\[End thinking\]", text, flags=re.IGNORECASE)
+	if len(parts) > 1:
+		return parts[-1].strip()
+
+	return text
 
 
 class LLMPromptAPI:
@@ -117,7 +130,7 @@ class LLMPromptAPI:
 		except Exception as exc:
 			raise RuntimeError(f"LLM API 호출 실패: {exc}") from exc
 
-		result_text = (getattr(response, "text", None) or "").strip()
+		result_text = _strip_end_thinking(getattr(response, "text", None) or "")
 
 		if not result_text:
 			prompt_feedback = getattr(response, "prompt_feedback", None)
